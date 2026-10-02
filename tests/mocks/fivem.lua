@@ -238,6 +238,7 @@ function Env:makeGlobals()
     G.RegisterServerEvent = G.RegisterNetEvent
     G.TriggerEvent = function(name, ...) return env:trigger(name, '', ...) end
     G.CancelEvent = function() if env.frame then env.frame.canceled = true end end
+    G.WasEventCanceled = function() return env.frame ~= nil and env.frame.canceled end
     G.TriggerClientEvent = function(name, target, ...)
         env.clientEvents[#env.clientEvents + 1] = { name = name, target = target, args = table.pack(...) }
     end
@@ -354,6 +355,12 @@ function Env:makeGlobals()
         return p.focus or env.entities[p.ped].pos
     end
     G.GetAirDragMultiplierForPlayersVehicle = function(src) return env.players[tonumber(src)].airDrag end
+    -- caméra synchronisée : (tangage, 0, lacet) en radians ; par défaut alignée sur le cap du ped
+    G.GetPlayerCameraRotation = function(src)
+        local p = env.players[tonumber(src)]
+        local yaw = p.camYaw or math.rad(env.entities[p.ped].heading or 0.0)
+        return vector3(p.camPitch or 0.0, 0.0, yaw)
+    end
 
     -- Entités
     local function E(h) return env.entities[h] end
