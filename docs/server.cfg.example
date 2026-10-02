@@ -1,0 +1,79 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  Rempart — exemple de server.cfg (extraits à intégrer dans le vôtre)
+#  Testez chaque option de sécurité sur un serveur de test : certaines peuvent
+#  casser des scripts mal écrits (voir les commentaires).
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── OneSync : INDISPENSABLE (la majorité des détections lisent la synchro) ─────
+set onesync on
+
+# ── Durcissement recommandé par Cfx.re ────────────────────────────────────────
+set sv_scriptHookAllowed false
+
+# Entités créées par les clients :
+#   relaxed = bloque les entités de SCRIPT créées par les clients (menus de spawn)
+#   strict  = aucun client ne crée d'entité (vos scripts doivent spawn côté serveur)
+# ⚠ De nombreux scripts (concessions, garages…) créent leurs véhicules côté client :
+#   testez sur un serveur de test avant de l'activer.
+# set sv_entityLockdown relaxed
+
+# Prise de contrôle des entités d'autrui (REQUEST_CONTROL_EVENT)
+#   2 = bloque les demandes sur toutes les entités contrôlées par des joueurs
+set sv_filterRequestControl 2
+
+# Événements réseau régulièrement détournés par les menus
+set sv_enableNetworkedSounds false
+set sv_enableNetworkedPhoneExplosions false
+# set sv_enableNetworkedScriptEntityStates false   # si aucun de vos scripts n'en dépend
+
+# Seul le serveur peut écrire les state bags (⚠ vérifiez pma-voice et vos scripts)
+# setr sv_stateBagStrictMode true
+
+# Fichiers de jeu modifiés : 1 = bloque tout sauf audio et mods graphiques connus
+sv_pureLevel 1
+
+set sv_endpointPrivacy true
+set sv_disableClientReplays true      # désactive aussi le Rockstar Editor
+
+# RCON : laissez vide (désactivé) ou utilisez 16+ caractères aléatoires
+# rcon_password ""
+
+# ⚠ JAMAIS :  add_ace builtin.everyone command allow
+
+# ── Rempart ───────────────────────────────────────────────────────────────────
+# Nom de la ressource anti-cheat. Si vous renommez le dossier « rempart »
+# (conseillé, ex. core_utils), changez-le ici ET dans les lignes ci-dessous.
+setr rempart:resource "rempart"
+
+# Webhooks Discord (laissez vide ceux que vous n'utilisez pas)
+set rempart_webhook_detections "https://discord.com/api/webhooks/..."
+set rempart_webhook_bans       "https://discord.com/api/webhooks/..."
+set rempart_webhook_admin      "https://discord.com/api/webhooks/..."
+set rempart_webhook_system     "https://discord.com/api/webhooks/..."
+
+# Lecture réservée à l'anti-cheat : une backdoor dans une autre ressource ne peut
+# pas voler les URL (une convar avec au moins une permission devient restreinte).
+add_convar_permission rempart read rempart_webhook_detections
+add_convar_permission rempart read rempart_webhook_bans
+add_convar_permission rempart read rempart_webhook_admin
+add_convar_permission rempart read rempart_webhook_system
+
+# Vérification VPN facultative (Config.Connection.vpn.enabled = true)
+# set rempart_proxycheck_key "votre-cle"
+# add_convar_permission rempart read rempart_proxycheck_key
+
+# Permissions
+add_ace group.admin rempart.admin allow      # commandes rmp + alertes en jeu
+add_ace group.admin rempart.bypass allow     # immunité totale aux détections
+# Immunités ciblées (par détection ou par catégorie) :
+# add_ace group.moderator rempart.bypass.movement allow
+# add_ace group.moderator rempart.bypass.freecam allow
+
+# ── Ordre de démarrage ────────────────────────────────────────────────────────
+# ensure oxmysql                             # facultatif, AVANT rempart si Config.Bans.storage = 'oxmysql'
+ensure rempart
+ensure rempart_sensor
+ensure screenshot-basic                      # facultatif : captures jointes aux bans
+
+# ... puis vos ressources (framework, jobs, etc.), avec dans leur fxmanifest :
+#     shared_script '@rempart/shield.lua'
