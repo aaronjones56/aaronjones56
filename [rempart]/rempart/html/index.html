@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>.</title>
+<style>html,body{margin:0;padding:0;background:transparent;}</style>
+</head>
+<body>
+<script>
+// Piège DevTools : l'instruction `debugger` est ignorée… sauf si les outils de
+// développement sont ouverts, auquel cas l'exécution se met en pause.
+(function () {
+    var res = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : 'rempart';
+    var hits = 0;
+    setInterval(function () {
+        var t = performance.now();
+        debugger;
+        if (performance.now() - t > 150) {
+            hits++;
+            if (hits >= 2) {
+                hits = 0;
+                fetch('https://' + res + '/dt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+                    .catch(function () {});
+            }
+        } else {
+            hits = 0;
+        }
+    }, 2500);
+})();
+</script>
+</body>
+</html>
