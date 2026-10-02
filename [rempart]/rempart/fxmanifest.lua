@@ -5,7 +5,7 @@ lua54 'yes'
 name 'rempart'
 author 'Rempart'
 description 'Rempart — anti-cheat serveur-autoritaire pour FiveM (OneSync)'
-version '1.0.0'
+version '1.1.0'
 
 -- Partagé (client + serveur) : SHA-256/HMAC et utilitaires.
 shared_scripts {

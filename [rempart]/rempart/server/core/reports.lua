@@ -17,7 +17,8 @@ Rempart.Reports = Reports
 local CLIENT_DETECTIONS = Utils.set({
     'client_godmode', 'client_spectate', 'client_invisible', 'client_noclip', 'client_freecam',
     'client_vision', 'client_weapon', 'client_vehicle', 'client_tiny_ped', 'client_ragdoll',
-    'nui_devtools', 'texture_menu', 'command_injected',
+    'nui_devtools', 'texture_menu', 'command_injected', 'client_env_tamper', 'lua_menu', 'client_honeypot',
+    'client_ammo', 'client_hitbox',
 })
 
 local cheatCommands = Utils.set(Lists.CheatCommands, true)
@@ -55,6 +56,18 @@ Rempart.Channel.on('detect', function(P, payload)
         if not cheatCommands[name] then return end
     end
 
+    if id == 'client_honeypot' then
+        -- seul un piège réellement armé par le serveur compte, avec son score serveur
+        local score = type(d.evenement) == 'string' and Rempart.Events.clientHoneypotScore(d.evenement)
+        if not score then return end
+        local armed = false
+        for _, n in ipairs(Rempart.Events.clientHoneypots()) do
+            if n == d.evenement then armed = true break end
+        end
+        if not armed then return end
+        return Rempart.Detect(P.src, id, d, { score = score })
+    end
+
     Rempart.Detect(P.src, id, d)
 end)
 
@@ -64,7 +77,7 @@ end)
 
 local FLAG_KINDS = Utils.set({
     'invisible', 'invincible', 'collision', 'frozen', 'spectate', 'camera', 'vision', 'ragdoll',
-    'vehiclegod', 'vehiclepower', 'repair', 'superjump',
+    'vehiclegod', 'vehiclepower', 'repair', 'superjump', 'heal',
 })
 
 Rempart.Channel.on('decl', function(P, payload)

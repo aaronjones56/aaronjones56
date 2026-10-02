@@ -5,7 +5,8 @@
       src     : id serveur du joueur
       id      : identifiant de détection (server/core/catalog.lua)
       details : table de preuves (affichée dans les logs/Discord/ban)
-      opts    : { score = n (surcharge), screenshot = bool, reason = string }
+      opts    : { score = n (surcharge), action = 'score'|'kick'|'ban'|'log' (surcharge),
+                  screenshot = bool, reason = string }
 
     Pipeline : catalogue -> immunité -> amortissement des répétitions -> score
     (décroissance exponentielle) -> journalisation -> décision (log/score/kick/ban)
@@ -127,6 +128,7 @@ function Punish.ban(P, opts)
             details = details,
             identifiers = P.idList,
             tokens = P.tokens,
+            cookies = P.cookies,
             duration = opts.duration or 0,
             by = opts.by or 'Rempart',
         })
@@ -231,6 +233,9 @@ function Rempart.Detect(src, id, details, opts)
         return 'immune'
     end
 
+    -- Action : catalogue, sauf surcharge ponctuelle (ex. piège dégradé en 'score')
+    local defAction = opts.action or def.action
+
     -- Amortissement des répétitions dans la fenêtre de recharge.
     local now = Rempart.now()
     local base = opts.score or def.score or 0
@@ -247,7 +252,7 @@ function Rempart.Detect(src, id, details, opts)
     c.total = c.total + 1
     local points = Utils.round(base * (Config.Risk.repeatFactor ^ math.min(c.n, 8)), 1)
 
-    local score = (def.action == 'log') and Punish.currentScore(P) or addScore(P, points)
+    local score = (defAction == 'log') and Punish.currentScore(P) or addScore(P, points)
     P.hist:push({ id = id, t = os.time(), pts = points })
 
     -- Journalisation
@@ -256,7 +261,7 @@ function Rempart.Detect(src, id, details, opts)
     Rempart.Log.file('detection', { src = P.src, name = P.name, license = P.ids.license, id = id,
         points = points, score = Utils.round(score, 1), details = details, repeated = repeated })
 
-    if not repeated and (points >= Config.Logs.discord.minScore or def.action == 'kick' or def.action == 'ban') then
+    if not repeated and (points >= Config.Logs.discord.minScore or defAction == 'kick' or defAction == 'ban') then
         local fields = {
             { name = 'Joueur', value = ('%s (#%d)'):format(Utils.escapeMarkdown(P.name), P.src), inline = true },
             { name = 'Score', value = ('+%s → **%d** / %d'):format(tostring(points), math.floor(score), Config.Risk.ban), inline = true },
@@ -265,16 +270,16 @@ function Rempart.Detect(src, id, details, opts)
         }
         Rempart.Log.discord('detections', Rempart.Log.embed({
             title = '🛡️ ' .. Rempart.label(id),
-            color = severityColor(points, def.action),
+            color = severityColor(points, defAction),
             fields = fields,
         }))
     end
-    if not repeated and (points >= Config.Permissions.notifyMinScore or def.action ~= 'score') then
+    if not repeated and (points >= Config.Permissions.notifyMinScore or defAction ~= 'score') then
         notifyAdmins(L('notify_detection', P.name, P.src, Rempart.label(id), tostring(points), math.floor(score)))
     end
 
     -- Décision
-    local action = def.action
+    local action = defAction
     if action == 'log' then return 'log' end
     if action == 'score' then
         if score >= Config.Risk.ban then

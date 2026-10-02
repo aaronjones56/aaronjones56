@@ -11,6 +11,9 @@
        qui a créé l'entité. Script inconnu du serveur => exécuteur Lua.
        Ressource qui ne crée jamais d'entités (chat, spawnmanager…) => injection.
     4. Objets attachés au ped d'un autre joueur (cages, props troll).
+    5. Création à distance : entité qui apparaît au contact d'un AUTRE joueur alors que son
+       créateur est loin (cages, pluie de véhicules, PNJ hostiles « sur » un joueur).
+    6. Ramassables (argent, armes, soins) : limiteur de débit dédié.
 ]]
 
 local M = Rempart.module('entities', {})
@@ -48,6 +51,40 @@ local function blacklistFor(kind)
     if kind == 'ped' then return lookup.spawnPedBlacklist end
     if kind == 'vehicle' then return lookup.vehicleBlacklist end
     return lookup.objectBlacklist
+end
+
+--- Autre joueur (que `owner`) à moins de `radius` m de `pos`, ou nil.
+local function victimNear(owner, pos, radius)
+    local r2 = radius * radius
+    for src, V in Rempart.Players.each() do
+        if src ~= owner then
+            local ped = GetPlayerPed(src)
+            if ped and ped ~= 0 then
+                local c = GetEntityCoords(ped)
+                local dx, dy, dz = c.x - pos.x, c.y - pos.y, c.z - pos.z
+                if dx * dx + dy * dy + dz * dz <= r2 then return V end
+            end
+        end
+    end
+    return nil
+end
+
+--- 5. Création à distance sur un autre joueur. Retourne true si l'entité doit être bloquée.
+local function remoteSpawn(owner, entity, kind, model)
+    local rs = cfg.remoteSpawn
+    if not rs or not rs.enabled then return false end
+    local ped = GetPlayerPed(owner)
+    if not ped or ped == 0 then return false end
+    local pos, oc = GetEntityCoords(entity), GetEntityCoords(ped)
+    local far = (kind == 'object') and rs.objectDistance or rs.otherDistance
+    if Utils.dist3(pos.x, pos.y, pos.z, oc.x, oc.y, oc.z) <= far then return false end
+    local V = victimNear(owner, pos, rs.victimRadius)
+    if not V then return false end
+    Rempart.Detect(owner, 'entity_remote_spawn', {
+        type = kind, modele = modelLabel(model), victime = ('%s (#%d)'):format(V.name, V.src),
+        distance_createur = math.floor(Utils.dist3(pos.x, pos.y, pos.z, oc.x, oc.y, oc.z)) .. ' m',
+    }, { score = (kind == 'object') and nil or 25 })
+    return kind == 'object'
 end
 
 local function deleteLater(entity)
@@ -104,16 +141,26 @@ AddEventHandler('entityCreating', function(entity)
     local P = Rempart.Players.get(owner)
     if not P then return end
 
-    local etype = GetEntityType(entity)
-    local kind = TYPE_NAMES[etype]
-    if not kind then return end
     local netType = GetNetTypeFromEntity(entity)
-    if netType == NET_TYPE_PLAYER or netType == NET_TYPE_DOOR or netType == NET_TYPE_PICKUP
-        or netType == NET_TYPE_PICKUP_PLACEMENT then
+    if netType == NET_TYPE_PLAYER or netType == NET_TYPE_DOOR then return end
+    if Rempart.Perms.immune(P, Rempart.Detections.entity_blacklisted) then return end
+
+    -- 6. Ramassables : débit seulement (les menus « money drop » en génèrent des centaines)
+    if netType == NET_TYPE_PICKUP or netType == NET_TYPE_PICKUP_PLACEMENT then
+        if cfg.limits.pickup and not bucket(P, 'pickup'):take(Rempart.now()) then
+            CancelEvent()
+            local st = P.state
+            st.pickupDropped = (st.pickupDropped or 0) + 1
+            if st.pickupDropped % 5 == 1 then
+                Rempart.Detect(owner, 'entity_spam', { type = 'pickup', refuses = st.pickupDropped })
+            end
+        end
         return
     end
 
-    if Rempart.Perms.immune(P, Rempart.Detections.entity_blacklisted) then return end
+    local etype = GetEntityType(entity)
+    local kind = TYPE_NAMES[etype]
+    if not kind then return end
 
     local model = Utils.h32(GetEntityModel(entity))
     if lookup.allowModels[model] then return end
@@ -136,6 +183,12 @@ AddEventHandler('entityCreating', function(entity)
         if st.spawnDropped % 5 == 1 then
             Rempart.Detect(owner, 'entity_spam', { type = kind, refuses = st.spawnDropped, modele = modelLabel(model) })
         end
+        return
+    end
+
+    -- 5. Création au contact d'un autre joueur, loin du créateur
+    if remoteSpawn(owner, entity, kind, model) then
+        CancelEvent()
         return
     end
 

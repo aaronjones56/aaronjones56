@@ -45,4 +45,31 @@ Lists.Honeypots = {
     'napadtransport:graczZrobilnapad', 'tost:zgarnijsiano', 'loffe_prisonwork', 'truckerJob:success',
     'truckerfuel:success', 'mission:completed', 'PayForRepairNow', 'gambling:spend',
     'ambulancier:selfRespawn', 'whoapd:revive', 'paramedic:revive',
+    -- Liste publique des événements abusés (gist d0p3t, forum Cfx.re), noms préfixés uniquement
+    'eden_garage:payhealth', 'esx_ambulancejob:revive', 'esx_ambulancejob:setDeathStatus', 'esx_billing:sendBill',
+    'esx_banksecurity:pay', 'esx_dmvschool:addLicense', 'esx_dmvschool:pay', 'esx_drugs:stopHarvestCoke',
+    'esx_drugs:stopSellCoke', 'esx_drugs:stopHarvestMeth', 'esx_drugs:stopTransformMeth', 'esx_drugs:stopSellMeth',
+    'esx_drugs:stopHarvestWeed', 'esx_drugs:stopTransformWeed', 'esx_drugs:stopSellWeed', 'esx_drugs:stopHarvestOpium',
+    'esx_drugs:stopTransformOpium', 'esx_drugs:stopSellOpium', 'esx:enterpolicecar', 'esx_fueldelivery:pay',
+    'esx:giveInventoryItem', 'esx:removeInventoryItem', 'esx_handcuffs:cuffing', 'esx_jail:unjailQuest',
+    'esx_jailer:unjailTime', 'esx_policejob:handcuff', 'esx_policejob:requestarrest', 'esx-qalle-jail:jailPlayerNew',
+    'esx-qalle-hunting:reward', 'esx-qalle-hunting:sell', 'esx_skin:responseSaveSkin', 'esx_society:getOnlinePlayers',
+    'esx_society:setJob', 'esx_vehicleshop:setVehicleOwned', 'js:removejailtime', 'LegacyFuel:PayFuel',
+    'lscustoms:payGarage', 'mellotrainer:adminTempBan', 'mellotrainer:adminKick', 'mellotrainer:s_adminKill',
 }
+
+-- Pièges « forts » : noms qu'aucun script légitime n'utilise (chaînes aléatoires de menus,
+-- événements d'anciens anti-cheats que les menus déclenchent pour se désactiver, faux menus
+-- admin). Toujours sanctionnés par un ban, même si le serveur contient des ressources chiffrées.
+Lists.HoneypotsStrong = {
+    '8321hiue89js', 'Tem2LPs5Para5dCyjuHm87y2catFkMpV', 'dqd36JWLRC72k8FDttZ5adUKwvwq9n9m', 'h:xd',
+    'hentailover:xdlol', 'HCheat:TempDisableDetection',
+    'antilynx8:anticheat', 'antilynxr4:detect', 'antilynxr6:detection', 'ynx8:anticheat', 'antilynx8r4a:anticheat',
+    'lynx8:anticheat', 'AntiLynxR4:kick', 'AntiLynxR4:log',
+    'AdminMenu:giveDirtyMoney', 'AdminMenu:giveBank', 'AdminMenu:giveCash', 'adminmenu:setsalary',
+    'adminmenu:allowall', 'adminmenu:cashoutall',
+}
+
+-- Motifs : certains menus insèrent « DFWM » dans leurs noms de triggers (esx_pizza:pDFWMay…)
+-- pour échapper aux listes ; un événement INEXISTANT qui contient ce motif est un piège fort.
+Lists.HoneypotPatterns = { 'DFWM' }

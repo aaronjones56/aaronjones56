@@ -10,12 +10,17 @@
        une connexion instable ne doit pas bannir). Réponse falsifiée → ban.
     5. Les rapports de détection client sont recoupés avec la vérité serveur
        (état réel des ressources, etc.) avant toute sanction.
+    6. Anti « event blocker » : chaque attestation porte le nombre de messages envoyés
+       par le client ; le serveur compte ceux qu'il a reçus. Des rapports de détection
+       manquants (et eux seuls) trahissent un cheat qui filtre les messages de l'anti-cheat.
+    7. Marqueur de ban (« cookie ») : identifiant aléatoire conservé chez le joueur (KVP
+       client + stockage NUI) qui survit aux nouveaux comptes et aux spoofers HWID.
 ]]
 
 local Channel = {}
 Rempart.Channel = Channel
 
-local handlers = {}           -- type de message -> function(P, payload)
+local handlers = {}           -- type de message -> function(P, payload, extra, seq)
 local prevKeys = {}           -- src -> { key, untilMs } (rotation de clé)
 local resChanges = {}         -- nom de ressource -> ms du dernier start/stop côté serveur
 
@@ -36,6 +41,22 @@ local function newKey()
         tostring(os.nanotime and os.nanotime() or 0), tostring({}),
     }, ':')
     return Sha256.hex(seed .. Utils.randomHex(32))
+end
+
+--- Nom (propre à ce serveur) sous lequel le client conserve le marqueur de ban.
+function Channel.cookieKey()
+    if not Channel._cookieKey then
+        local secret = GetConvar('rempart_cookie_secret', '')
+        if secret == '' then
+            secret = Rempart.Storage.get('secret')
+            if type(secret) ~= 'string' or #secret < 32 then
+                secret = Utils.randomHex(32)
+                Rempart.Storage.set('secret', secret)
+            end
+        end
+        Channel._cookieKey = 'rmp_' .. Sha256.hex(secret .. ':cookie'):sub(1, 16)
+    end
+    return Channel._cookieKey
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -85,13 +106,29 @@ end
 AddEventHandler('onResourceStart', onResourceChange)
 AddEventHandler('onResourceStop', onResourceChange)
 
+--- Diffuse la liste des ressources protégées par le shield (collecte des compteurs).
+function Channel.broadcastShielded()
+    local list = Rempart.Events.shieldedList()
+    for src, P in Rempart.Players.each() do
+        if P.session then Channel.send(src, 'shielded', list) end
+    end
+end
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Configuration envoyée au client (sous-ensemble : jamais les webhooks, bans…)
 -- ─────────────────────────────────────────────────────────────────────────────
 
+local function hashes(names)
+    local out = {}
+    for _, n in ipairs(names or {}) do out[#out + 1] = Utils.joaat(n) end
+    return out
+end
+
 local function clientConfig()
     local weapons = {}
     for h in pairs(Rempart.lookup.weaponBlacklist) do weapons[#weapons + 1] = h end
+    local att = Config.Events.attestation
+    local wall = Config.Combat.wallbang
     return {
         checks = Config.Client.checks,
         freecamDistance = Config.Client.freecamDistance,
@@ -102,6 +139,13 @@ local function clientConfig()
         maxMeleeModifier = Config.PlayerState.maxMeleeDamageModifier,
         cheatCommands = Lists.CheatCommands,
         cheatTextures = Lists.CheatTextures,
+        runtimeTextures = Lists.CheatRuntimeTextures,
+        cheatGlobals = Lists.CheatGlobals,
+        clientHoneypots = Rempart.Events.clientHoneypots(),
+        specialAmmo = hashes(Lists.SpecialAmmoWeapons),
+        attest = att and att.enabled or false,
+        witness = (wall and wall.enabled) or false,
+        cookie = Config.Bans.cookies and Channel.cookieKey() or nil,
         spawnGrace = Config.Movement.spawnGrace,
     }
 end
@@ -142,12 +186,17 @@ local function startSession(P, payload)
         missed = 0,
         pending = nil,
         n = 0,
+        rx = 0,               -- messages reçus depuis l'ouverture (avant tout filtrage)
+        rxd = 0,              -- dont rapports de détection
+        deficit = 0,          -- messages manquants déjà signalés
         version = type(payload) == 'table' and tostring(payload.v or '?') or '?',
     }
+    Rempart.Events.resetAttestation(P)
     Channel.send(P.src, 'init', {
         key = P.session.key,
         cfg = clientConfig(),
         resources = Channel.serverResources(),
+        shielded = Rempart.Events.shieldedList(),
     })
     -- vérifie la liste de ressources annoncée par le client
     if type(payload) == 'table' and type(payload.res) == 'table' then
@@ -160,6 +209,13 @@ RegisterNetEvent(Rempart.EV_C2S, function(kind, seq, mac, payload, extra)
     if not src or type(kind) ~= 'string' then return end
     local P = Rempart.Players.ensure(src)
     if not P or P.punished then return end
+
+    -- comptage AVANT tout filtrage : sert à détecter les messages bloqués côté client
+    local s = P.session
+    if s and kind ~= 'hello' then
+        s.rx = s.rx + 1
+        if kind == 'detect' then s.rxd = s.rxd + 1 end
+    end
 
     -- limite de débit du canal (protège le serveur du spam de messages) ;
     -- le heartbeat n'y est jamais soumis : il ne doit pas pouvoir être affamé.
@@ -196,7 +252,7 @@ RegisterNetEvent(Rempart.EV_C2S, function(kind, seq, mac, payload, extra)
 
     local h = handlers[kind]
     if h then
-        local okh, err = pcall(h, P, payload, extra)
+        local okh, err = pcall(h, P, payload, extra, math.tointeger(seq))
         if not okh then Rempart.Log.error('Canal : erreur sur « %s » : %s', kind, tostring(err)) end
     end
 end)
@@ -217,32 +273,79 @@ Channel.on('pong', function(P, payload, extra)
     s.clientResCount = math.tointeger(payload.rc)
 end)
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Attestation + messages bloqués
+-- ─────────────────────────────────────────────────────────────────────────────
+
+Channel.on('att', function(P, payload, _, seq)
+    if type(payload) ~= 'table' then return end
+    local s = P.session
+    s.lastAttMs = Rempart.now()
+
+    -- Messages envoyés par le client AVANT celui-ci, contre messages reçus (hors celui-ci).
+    -- Le transport des événements est fiable et ordonné : seul un filtre côté client (ou le
+    -- limiteur global de FXServer, qui ne choisit pas ses victimes) peut en perdre.
+    local tx, txd = math.tointeger(payload.tx), math.tointeger(payload.txd)
+    if tx and txd then
+        local missing = tx - (s.rx - 1)
+        local missingDetect = txd - s.rxd
+        if missing > s.deficit then
+            local targeted = missingDetect > 0 and missingDetect >= (missing - s.deficit)
+            s.deficit = missing
+            if targeted then
+                Rempart.Detect(P.src, 'client_blocked', {
+                    messages_bloques = missing, dont_detections = missingDetect,
+                })
+            else
+                Rempart.Log.debug('%s (#%d) : %d message(s) anti-cheat perdu(s)', P.name, P.src, missing)
+            end
+        end
+    end
+
+    if seq and type(payload.t) == 'table' then
+        Rempart.Events.onAttestation(P, seq, payload.t)
+    end
+end)
+
 local function heartbeatTick()
     if not Config.Client.enabled then return end
     local now = Rempart.now()
     local interval = Config.Client.heartbeatInterval * 1000
+    local attOn = Config.Events.attestation and Config.Events.attestation.enabled
     for src, P in Rempart.Players.each() do
         if not P.punished then
             local s = P.session
             if not s then
-                if (now - P.joinedMs) > Config.Client.helloTimeout * 1000 then
-                    Rempart.Detect(src, 'client_missing', { attente = Config.Client.helloTimeout .. ' s' },
+                -- pas de module anti-cheat : délai long au chargement, court dès que les AUTRES
+                -- scripts du joueur tournent (événements réseau reçus) — « resource blocker »
+                local waited = now - P.joinedMs
+                local active = P.activeMs and (now - P.activeMs) > (Config.Client.activityTimeout or 90) * 1000
+                if waited > Config.Client.helloTimeout * 1000 or active then
+                    Rempart.Detect(src, 'client_missing', { attente = math.floor(waited / 1000) .. ' s' },
                         { reason = L('client_missing') })
                 end
-            elseif (now - (s.lastPingMs or 0)) >= interval then
-                if s.pending then
-                    s.missed = s.missed + 1
-                    if s.missed >= Config.Client.maxMissed then
-                        Rempart.Detect(src, 'heartbeat_timeout', {
-                            defis_manques = s.missed,
-                            dernier_pong = math.floor((now - s.lastPongMs) / 1000) .. ' s',
-                        }, { reason = L('client_timeout') })
+            else
+                if (now - (s.lastPingMs or 0)) >= interval then
+                    if s.pending then
+                        s.missed = s.missed + 1
+                        if s.missed >= Config.Client.maxMissed then
+                            Rempart.Detect(src, 'heartbeat_timeout', {
+                                defis_manques = s.missed,
+                                dernier_pong = math.floor((now - s.lastPongMs) / 1000) .. ' s',
+                            }, { reason = L('client_timeout') })
+                        end
                     end
+                    s.n = s.n + 1
+                    s.lastPingMs = now
+                    s.pending = { n = s.n, nonce = Utils.randomHex(16), sentMs = now }
+                    Channel.send(src, 'ping', { n = s.n, nonce = s.pending.nonce })
                 end
-                s.n = s.n + 1
-                s.lastPingMs = now
-                s.pending = { n = s.n, nonce = Utils.randomHex(16), sentMs = now }
-                Channel.send(src, 'ping', { n = s.n, nonce = s.pending.nonce })
+                -- le heartbeat passe mais plus aucune attestation : filtrage sélectif
+                if attOn and (now - s.createdMs) > 45000 and (now - (s.lastAttMs or s.createdMs)) > 45000
+                    and (now - s.lastPongMs) < 20000 and not s.attFlagged then
+                    s.attFlagged = true
+                    Rempart.Detect(src, 'client_blocked', { raison = 'attestations absentes, heartbeat actif' })
+                end
             end
         end
     end
@@ -290,6 +393,45 @@ Channel.on('stop', function(P, payload)
             Rempart.Detect(src, 'resource_stopped', { ressource = name })
         end
     end)
+end)
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Marqueur de ban (cookie)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+local function validCookie(v)
+    return type(v) == 'string' and #v == 32 and not v:find('[^0-9a-f]')
+end
+
+Channel.on('ck', function(P, payload)
+    if not Config.Bans.cookies or type(payload) ~= 'table' then return end
+    local found = {}
+    for _, v in ipairs({ payload.k, payload.l }) do
+        if validCookie(v) and not found[v] then
+            found[v] = true
+            P.cookies = P.cookies or {}
+            P.cookies[#P.cookies + 1] = v
+        end
+    end
+    -- contournement : marqueur d'un joueur banni sur un nouveau compte / PC « spoofé »
+    for v in pairs(found) do
+        local ban = Rempart.Bans.matchCookie(v)
+        if ban then
+            if Config.Bans.extendOnEvasion then Rempart.Bans.extend(ban, P.idList, P.tokens, { v }) end
+            return Rempart.Detect(P.src, 'ban_evasion', { ban = ban.id, via = 'marqueur client' },
+                { reason = L('ban_evasion') })
+        end
+    end
+    -- (re)pose le marqueur dans les deux emplacements
+    local value = (validCookie(payload.k) and payload.k) or (validCookie(payload.l) and payload.l) or nil
+    if not value then
+        value = Utils.randomHex(32)
+        P.cookies = P.cookies or {}
+        P.cookies[#P.cookies + 1] = value
+    end
+    if payload.k ~= value or payload.l ~= value then
+        Channel.send(P.src, 'setck', { v = value })
+    end
 end)
 
 CreateThread(function()

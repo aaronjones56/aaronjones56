@@ -14,10 +14,17 @@
         GiveWeaponToPed appliqués par vos scripts serveur sont signalés comme légitimes
 
     CÔTÉ CLIENT — déclarations d'intentions :
-      quand VOTRE script téléporte le joueur, le rend invisible/invincible, coupe ses
-      collisions, active une caméra scriptée, le mode spectateur, répare son véhicule…
-      l'anti-cheat en est informé et ne le confond pas avec un tricheur. Un exécuteur
-      qui appelle les natives directement ne déclare rien et reste détecté.
+      quand VOTRE script téléporte le joueur, le rend invisible/invincible, le soigne,
+      coupe ses collisions, active une caméra scriptée, le mode spectateur, répare son
+      véhicule… l'anti-cheat en est informé et ne le confond pas avec un tricheur. Un
+      exécuteur qui appelle les natives directement ne déclare rien et reste détecté.
+
+    CÔTÉ CLIENT — attestation et menus :
+      chaque TriggerServerEvent de cette ressource est compté ; l'anti-cheat atteste ces
+      compteurs au serveur. Un événement protégé que le serveur reçoit SANS attestation a
+      été déclenché hors de vos ressources (exécuteur en « ressource isolée »).
+      L'environnement Lua de cette ressource est aussi inspecté (variables globales de
+      menus injectés : les exécuteurs choisissent souvent une ressource légitime).
 
     Le shield est passif tant que l'anti-cheat n'est pas démarré, et chaque appel
     est protégé : il ne peut pas casser la ressource qui l'inclut.
@@ -43,6 +50,7 @@ if IS_SERVER then
     local EV = AC .. ':shield'
 
     local netEvents = {}          -- événements réseau enregistrés par cette ressource
+    local announced = false       -- liste déjà transmise à l'anti-cheat
     local policy = nil            -- reçue de l'anti-cheat
     local quarantined = {}
     local buckets = {}            -- src -> nom -> { tokens, last }
@@ -184,7 +192,11 @@ if IS_SERVER then
     end
 
     function RegisterNetEvent(name, cb)
-        if type(name) == 'string' then netEvents[name] = true end
+        if type(name) == 'string' and not netEvents[name] then
+            netEvents[name] = true
+            -- enregistré après l'annonce : l'anti-cheat doit aussi le protéger
+            if announced then pcall(TriggerEvent, EV .. ':net', RES, name) end
+        end
         _RegisterNetEvent(name)
         if cb then return AddEventHandler(name, cb) end
     end
@@ -212,7 +224,12 @@ if IS_SERVER then
         end
     end)
 
-    local function hello() TriggerEvent(EV .. ':hello', RES) end
+    local function hello()
+        local names = {}
+        for name in pairs(netEvents) do names[#names + 1] = name end
+        TriggerEvent(EV .. ':hello', RES, names)
+        announced = true
+    end
     _AddEventHandler('onResourceStart', function(res)
         if res == AC then SetTimeout(1000, hello) end
     end)
@@ -281,6 +298,52 @@ else
     local GetGameTimer, PlayerPedId, PlayerId = GetGameTimer, PlayerPedId, PlayerId
     local lastSent = {}   -- kind -> { value, ms }
 
+    -- Attestation : compteurs cumulés des événements serveur déclenchés par CETTE ressource.
+    local txCounts, txNames = {}, 0
+    local function count(name)
+        if type(name) ~= 'string' then return end
+        local c = txCounts[name]
+        if not c then
+            if txNames >= 512 then return end
+            txNames = txNames + 1
+            c = 0
+        end
+        txCounts[name] = c + 1
+    end
+    local _TriggerServerEvent, _TriggerLatentServerEvent = TriggerServerEvent, TriggerLatentServerEvent
+    if _TriggerServerEvent then
+        TriggerServerEvent = function(name, ...)
+            count(name)
+            return _TriggerServerEvent(name, ...)
+        end
+    end
+    if _TriggerLatentServerEvent then
+        TriggerLatentServerEvent = function(name, ...)
+            count(name)
+            return _TriggerLatentServerEvent(name, ...)
+        end
+    end
+    exports('__rmp_tx', function() return txCounts end)
+
+    -- Menus Lua injectés dans CETTE ressource : variables globales caractéristiques.
+    CreateThread(function()
+        Wait(20000)
+        local names
+        while true do
+            if not names then
+                local ok, list = pcall(function() return exports[AC]:ShieldGlobals() end)
+                if ok and type(list) == 'table' then names = list end
+            end
+            for _, n in ipairs(names or {}) do
+                if rawget(_G, n) ~= nil then
+                    pcall(function() exports[AC]:ShieldReport('lua_menu', { variable = n }) end)
+                    break
+                end
+            end
+            Wait(30000)
+        end
+    end)
+
     local function declare(kind, value, x, y, z)
         local now = GetGameTimer()
         local prev = lastSent[kind]
@@ -327,7 +390,18 @@ else
     hook('StartPlayerTeleport', function(player, x, y, z)
         if player == PlayerId() then declare('tp', true, x, y, z) end
     end)
-    hook('NetworkResurrectLocalPlayer', function(x, y, z) declare('tp', true, x, y, z) end)
+    hook('NetworkResurrectLocalPlayer', function(x, y, z)
+        declare('tp', true, x, y, z)
+        declare('heal', true)
+    end)
+
+    -- Soins (sinon confondus avec le « semi-godmode » qui remonte la santé instantanément)
+    hook('SetEntityHealth', function(entity, health)
+        if isMe(entity) and (tonumber(health) or 0) > GetEntityHealth(entity) then declare('heal', true) end
+    end)
+    hook('SetPedArmour', function(ped) if isMe(ped) then declare('heal', true) end end)
+    hook('AddArmourToPed', function(ped) if isMe(ped) then declare('heal', true) end end)
+    hook('ResurrectPed', function(ped) if isMe(ped) then declare('heal', true) end end)
 
     -- Visibilité, invincibilité, collisions, gel
     hook('SetEntityVisible', function(entity, toggle)

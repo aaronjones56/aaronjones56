@@ -11,6 +11,7 @@ Lists = Lists or {}
 
 Lists.WeaponGroups = {
     melee   = { range = 12.0,   rate = 8,  aim = false },
+    stungun = { range = 25.0,   rate = 3,  aim = true },   -- portée réelle ≈ 10-12 m
     pistol  = { range = 220.0,  rate = 14, aim = true },
     smg     = { range = 220.0,  rate = 35, aim = true },
     shotgun = { range = 120.0,  rate = 90, aim = true },  -- plombs multiples par tir
@@ -22,6 +23,7 @@ Lists.WeaponGroups = {
 }
 
 Lists.Weapons = {
+    stungun = { 'WEAPON_STUNGUN', 'WEAPON_STUNGUN_MP' },
     melee = {
         'WEAPON_UNARMED', 'WEAPON_DAGGER', 'WEAPON_BAT', 'WEAPON_BOTTLE', 'WEAPON_CROWBAR', 'WEAPON_FLASHLIGHT',
         'WEAPON_GOLFCLUB', 'WEAPON_HAMMER', 'WEAPON_HATCHET', 'WEAPON_KNUCKLE', 'WEAPON_KNIFE', 'WEAPON_MACHETE',
@@ -29,7 +31,7 @@ Lists.Weapons = {
         'WEAPON_STONE_HATCHET', 'WEAPON_CANDYCANE', 'WEAPON_STUNROD',
     },
     pistol = {
-        'WEAPON_PISTOL', 'WEAPON_PISTOL_MK2', 'WEAPON_COMBATPISTOL', 'WEAPON_STUNGUN', 'WEAPON_STUNGUN_MP',
+        'WEAPON_PISTOL', 'WEAPON_PISTOL_MK2', 'WEAPON_COMBATPISTOL',
         'WEAPON_PISTOL50', 'WEAPON_SNSPISTOL', 'WEAPON_SNSPISTOL_MK2', 'WEAPON_HEAVYPISTOL', 'WEAPON_VINTAGEPISTOL',
         'WEAPON_FLAREGUN', 'WEAPON_MARKSMANPISTOL', 'WEAPON_REVOLVER', 'WEAPON_REVOLVER_MK2', 'WEAPON_DOUBLEACTION',
         'WEAPON_RAYPISTOL', 'WEAPON_CERAMICPISTOL', 'WEAPON_NAVYREVOLVER', 'WEAPON_GADGETPISTOL', 'WEAPON_PISTOLXM3',
@@ -66,4 +68,23 @@ Lists.Weapons = {
         'WEAPON_SNOWBALL', 'WEAPON_PIPEBOMB', 'WEAPON_BALL', 'WEAPON_SMOKEGRENADE', 'WEAPON_FLARE',
         'WEAPON_ACIDPACKAGE',
     },
+}
+
+-- Dégâts « environnementaux » : le jeu les applique localement (chute, noyade, saignement…).
+-- Un client n'envoie JAMAIS ces armes dans un weaponDamageEvent visant un autre joueur :
+-- c'est la signature de menus qui tuent ou plient (« fold ») les joueurs à distance.
+-- (WEAPON_FALL apparaît sous deux hashes ; source : Icarus Advanced Anticheat.)
+Lists.ForgedDamageWeapons = {
+    'WEAPON_FALL', 2725352035, 'WEAPON_DROWNING', 'WEAPON_DROWNING_IN_VEHICLE', 'WEAPON_BLEEDING',
+    'WEAPON_EXHAUSTION', 'WEAPON_ELECTRIC_FENCE', 'WEAPON_BARBED_WIRE',
+}
+-- Fiente d'oiseau : arme réelle (ped oiseau), mais jamais avec des dégâts démesurés.
+Lists.BirdCrap = { weapon = 'WEAPON_BIRD_CRAP', maxDamage = 1000 }
+
+-- Armes MK2 : munitions spéciales légitimes (explosives, incendiaires) — exclues du contrôle
+-- client du type de dégâts.
+Lists.SpecialAmmoWeapons = {
+    'WEAPON_PISTOL_MK2', 'WEAPON_SNSPISTOL_MK2', 'WEAPON_REVOLVER_MK2', 'WEAPON_SMG_MK2', 'WEAPON_PUMPSHOTGUN_MK2',
+    'WEAPON_ASSAULTRIFLE_MK2', 'WEAPON_CARBINERIFLE_MK2', 'WEAPON_SPECIALCARBINE_MK2', 'WEAPON_BULLPUPRIFLE_MK2',
+    'WEAPON_COMBATMG_MK2', 'WEAPON_HEAVYSNIPER_MK2', 'WEAPON_MARKSMANRIFLE_MK2',
 }

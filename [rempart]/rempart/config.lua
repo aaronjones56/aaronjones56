@@ -89,6 +89,8 @@ Config.Bans = {
     useTokens = true,            -- tokens matériels (HWID) : redoutable contre les multi-comptes
     useIp = false,               -- déconseillé (IP partagées, CGNAT)
     extendOnEvasion = true,      -- contournement détecté => les nouveaux identifiants rejoignent le ban
+    cookies = true,              -- marqueur aléatoire stocké chez le joueur (KVP + stockage NUI) : survit aux
+                                 -- changements de compte et aux spoofers HWID (sauf nettoyage du cache FiveM)
     idPrefix = 'RMP',
 }
 
@@ -150,6 +152,8 @@ Config.Logs = {
 Config.Client = {
     enabled = true,
     helloTimeout = 300,          -- s : délai max pour que le module client démarre après la connexion
+    activityTimeout = 90,        -- s : délai max après les premiers événements réseau du joueur (ses autres
+                                 -- scripts tournent mais l'anti-cheat ne répond pas = « resource blocker »)
     heartbeatInterval = 15,      -- s entre deux défis
     maxMissed = 4,               -- défis consécutifs sans réponse valide => kick (pas de ban : connexions instables)
     checks = {
@@ -167,6 +171,12 @@ Config.Client = {
         tinyPed = true,
         ragdoll = false,         -- anti-ragdoll (désactivé : certains serveurs le coupent volontairement)
         devtools = true,         -- DevTools NUI (piège 'debugger')
+        globals = true,          -- variables globales de menus Lua (ici et dans les ressources avec shield)
+        envTamper = true,        -- natives du client anti-cheat remplacées (injection dans sa ressource)
+        honeypots = true,        -- événements client pièges (sondage ESX/QBCore, exploits de vieux scripts)
+        ammo = true,             -- munitions explosives/incendiaires sur une arme à balles
+        hitbox = true,           -- dimensions des modèles de personnage modifiées
+        witness = true,          -- les victimes signalent les tirs reçus sans ligne de vue (recoupé serveur)
     },
     freecamDistance = 120.0,     -- m entre caméra et joueur
     noclipHeight = 8.0,          -- m au-dessus du sol sans chute
@@ -184,6 +194,7 @@ Config.Entities = {
         vehicle = { burst = 8, rate = 0.5 },
         ped     = { burst = 10, rate = 0.5 },
         object  = { burst = 80, rate = 4.0 },   -- généreux : meubles/décors en rafale
+        pickup  = { burst = 10, rate = 0.5 },   -- ramassables (argent, armes, soins)
     },
     -- Entité créée par un script qui n'existe pas côté serveur => exécuteur/injection.
     unknownScript = true,
@@ -198,6 +209,14 @@ Config.Entities = {
     -- Objets attachés à un AUTRE joueur (cages, props « troll »).
     attachToPlayers = true,
     attachAllowModels = {},      -- ex. sacs, menottes… si un script légitime en attache à autrui
+    -- Entité créée au contact d'un AUTRE joueur, loin de son créateur (cages, pluie de véhicules,
+    -- armée de PNJ sur un joueur). Les objets sont bloqués ; PNJ et véhicules sont seulement signalés.
+    remoteSpawn = {
+        enabled = true,
+        objectDistance = 80.0,   -- m entre le créateur et l'objet
+        otherDistance = 150.0,   -- m entre le créateur et le PNJ/véhicule
+        victimRadius = 6.0,      -- m autour de la victime
+    },
 }
 
 -- ═════════════════════════════════════════════════════════════════════════════
@@ -248,6 +267,17 @@ Config.Combat = {
     rateCheck = true,            -- cadence impossible
     multiTarget = 6,             -- cibles distinctes touchées en 2 s (kill aura)
     maxOverrideDamage = 300,     -- dégâts forcés max (overrideDefaultDamage) sur un joueur
+    forgedDamage = true,         -- armes environnementales (chute, noyade…) envoyées à un joueur : bloquées
+    cameraCheck = true,          -- cible hors du champ de la CAMÉRA synchronisée (silent aim / magic bullet)
+    cameraMaxAngle = 65.0,       -- degrés entre l'axe de la caméra et la cible…
+    cameraMinDistance = 12.0,    -- …au-delà de cette distance (m)
+    absorbCheck = true,          -- victime qui encaisse des dégâts mortels sans effet (godmode par immunités)
+    tazerRagdoll = true,         -- victime d'un taser qui ne tombe pas (anti-ragdoll)
+    wallbang = {                 -- tirs à travers les murs signalés par les victimes (recoupés serveur)
+        enabled = true,
+        minReporters = 2,        -- victimes distinctes requises
+        window = 1800,           -- s
+    },
 }
 
 -- ═════════════════════════════════════════════════════════════════════════════
@@ -337,6 +367,8 @@ Config.PlayerState = {
     frozenMoving = true,
     freecamDistance = 250.0,     -- focus caméra serveur (GetPlayerFocusPos) éloigné du ped
     airDrag = true,
+    healthRegen = true,          -- soin instantané non déclaré (semi-godmode) : +N PV entre deux échantillons
+    regenThreshold = 40,         -- PV gagnés en un échantillon (la régénération naturelle est bien plus lente)
     blacklistedPeds = {          -- modèles de joueur interdits (oiseaux = vol, animaux marins…)
         'a_c_seagull', 'a_c_crow', 'a_c_chickenhawk', 'a_c_cormorant', 'a_c_pigeon',
         'a_c_killerwhale', 'a_c_humpback', 'a_c_dolphin', 'a_c_sharkhammer', 'a_c_sharktiger', 'a_c_stingray',
@@ -364,6 +396,16 @@ Config.Events = {
     extraHoneypots = {},         -- vos propres pièges
     disabledHoneypots = {},      -- pièges à ne jamais armer
     staticScan = true,           -- recense les événements réseau réels du serveur (analyse des scripts)
+    -- Attestation : le shield compte chaque TriggerServerEvent de vos ressources et le module
+    -- anti-cheat les atteste au serveur (message signé). Un événement protégé reçu SANS attestation
+    -- vient d'un code extérieur à vos ressources : exécuteur « ressource isolée », trigger finder…
+    -- Nécessite rempart_sensor. Les événements aussi appelés par des ressources sans shield (analyse
+    -- statique + apprentissage) ne sont jamais signalés.
+    attestation = {
+        enabled = true,
+        learnPlayers = 3,        -- joueurs distincts non attestés => appelant légitime sans shield (ignoré)
+        escalateNames = 3,       -- événements protégés distincts non attestés en 10 min => score renforcé
+    },
     sensor = {                   -- nécessite la ressource rempart_sensor
         floodPerSecond = 35,     -- événements/s soutenus sur 5 s
         burstDistinct = 40,      -- noms d'événements distincts en 5 s (menus "trigger all")

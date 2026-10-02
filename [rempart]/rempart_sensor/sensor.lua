@@ -12,6 +12,10 @@
     démesurées, événements inexistants, + une trace forensique des 40 derniers
     événements de chaque joueur (jointe aux bans).
 
+    Attestation : elle compte, par joueur, les événements PROTÉGÉS réellement reçus et
+    transmet un instantané de ces compteurs au moment exact où passe chaque message
+    d'attestation du module anti-cheat (ordre de réception garanti par le transport).
+
     Isolée dans sa propre ressource pour ne jamais perturber la logique d'événements
     de l'anti-cheat ni d'aucune autre ressource.
 ]]
@@ -40,6 +44,8 @@ local function stats(src, now)
             unknownCount = 0,
             trail = {}, trailPos = 0,
             reported = {},
+            rx = {},            -- événement protégé -> nombre reçu (attestation)
+            active = false,     -- premier événement d'un script du joueur déjà signalé
         }
         players[src] = s
     end
@@ -67,8 +73,19 @@ local function isKnown(name)
     return false
 end
 
+--- Instantané des compteurs d'événements protégés, au passage d'une attestation.
+local function attestationSnapshot(src, s, payload)
+    local ok, args = pcall(unpack, payload)
+    if not ok or type(args) ~= 'table' or args[1] ~= 'att' then return end
+    local seq = tonumber(args[2])
+    if not seq then return end
+    local snap = {}
+    for k, v in pairs(s.rx) do snap[k] = v end
+    TriggerEvent(EV .. ':rx', src, seq, snap)
+end
+
 --- Traitement d'un événement réseau émis par un client.
-local function onNet(name, src, size)
+local function onNet(name, src, size, payload)
     local now = GetGameTimer()
     local s = stats(src, now)
 
@@ -76,11 +93,32 @@ local function onNet(name, src, size)
     s.trailPos = (s.trailPos % TRAIL) + 1
     s.trail[s.trailPos] = { name, now, size }
 
+    if name == cfg.channel then
+        return attestationSnapshot(src, s, payload)
+    end
     if cfg.ignore[name] or sub(name, 1, 5) == '__cfx' then return end
 
-    -- 1. piège
+    -- les scripts du joueur tournent (sert à exiger le module anti-cheat sans attendre)
+    if not s.active then
+        s.active = true
+        TriggerEvent(EV .. ':hit', src, 'active', {})
+    end
+
+    -- 0. compteur d'attestation
+    if cfg.tracked[name] then
+        s.rx[name] = (s.rx[name] or 0) + 1
+    end
+
+    -- 1. piège (nom exact, ou motif dans un événement inexistant)
     if cfg.honeypots[name] then
         TriggerEvent(EV .. ':hit', src, 'honeypot', { event = name, size = size })
+    else
+        for _, p in ipairs(cfg.patterns) do
+            if name:find(p, 1, true) and not isKnown(name) then
+                TriggerEvent(EV .. ':hit', src, 'honeypot', { event = name, size = size, pattern = p })
+                break
+            end
+        end
     end
 
     -- 2. charge démesurée
@@ -165,7 +203,7 @@ local function routine(eventName, payload, eventSource)
         if cfg then
             local src = tonumber(sub(eventSource, 5))
             if src then
-                local ok, err = pcall(onNet, eventName, src, #payload)
+                local ok, err = pcall(onNet, eventName, src, #payload, payload)
                 if not ok then print('^1[rempart_sensor]^7 ' .. tostring(err)) end
             end
         end
@@ -181,6 +219,7 @@ local function routine(eventName, payload, eventSource)
             local c = args[1]
             c.known, c.prefixes, c.escrowed = c.known or {}, c.prefixes or {}, c.escrowed or {}
             c.honeypots, c.ignore = c.honeypots or {}, c.ignore or {}
+            c.tracked, c.patterns = c.tracked or {}, c.patterns or {}
             cfg = c
         end
     elseif eventName == EV .. ':dump' then

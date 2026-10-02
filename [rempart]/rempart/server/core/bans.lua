@@ -6,6 +6,8 @@
     À la connexion, la moindre correspondance suffit. Si un joueur banni revient avec
     un nouveau compte mais le même PC (tokens), le ban est étendu à ses nouveaux
     identifiants (Config.Bans.extendOnEvasion).
+    Les marqueurs client (« cookies », Config.Bans.cookies) rattrapent ceux qui changent
+    aussi de tokens avec un spoofer HWID sans nettoyer leur installation FiveM.
 ]]
 
 local Bans = {}
@@ -14,6 +16,7 @@ Rempart.Bans = Bans
 local bans = {}          -- id -> ban
 local idIndex = {}       -- identifiant -> id du ban
 local tokenIndex = {}    -- token -> id du ban
+local cookieIndex = {}   -- marqueur client -> id du ban
 
 local indexedTypes = Utils.set(Config.Bans.identifiers)
 if Config.Bans.useIp then indexedTypes.ip = true end
@@ -35,6 +38,7 @@ local function index(ban)
     if Config.Bans.useTokens then
         for _, t in ipairs(ban.tokens or {}) do tokenIndex[t] = ban.id end
     end
+    for _, c in ipairs(ban.cookies or {}) do cookieIndex[c] = ban.id end
 end
 
 local function unindex(ban)
@@ -44,6 +48,9 @@ local function unindex(ban)
     end
     for _, t in ipairs(ban.tokens or {}) do
         if tokenIndex[t] == ban.id then tokenIndex[t] = nil end
+    end
+    for _, c in ipairs(ban.cookies or {}) do
+        if cookieIndex[c] == ban.id then cookieIndex[c] = nil end
     end
 end
 
@@ -62,7 +69,7 @@ end
 --- Recharge entièrement les bans depuis le stockage.
 function Bans.load(cb)
     Rempart.Storage.bans.loadAll(function(list)
-        bans, idIndex, tokenIndex = {}, {}, {}
+        bans, idIndex, tokenIndex, cookieIndex = {}, {}, {}, {}
         local expired = 0
         for _, ban in ipairs(list) do
             if isExpired(ban) then
@@ -76,7 +83,7 @@ function Bans.load(cb)
     end)
 end
 
---- Crée un ban. Champs : name, reason, identifiers, tokens, duration (s, 0 = définitif),
+--- Crée un ban. Champs : name, reason, identifiers, tokens, cookies, duration (s, 0 = définitif),
 --- detection, details, by. Retourne l'enregistrement.
 function Bans.add(opts)
     local ban = {
@@ -87,6 +94,7 @@ function Bans.add(opts)
         details = opts.details,
         identifiers = opts.identifiers or {},
         tokens = Config.Bans.useTokens and (opts.tokens or {}) or {},
+        cookies = opts.cookies or {},
         createdAt = os.time(),
         expiresAt = (opts.duration and opts.duration > 0) and (os.time() + opts.duration) or 0,
         by = opts.by or 'Rempart',
@@ -141,12 +149,26 @@ function Bans.match(identifiers, tokens)
     return nil
 end
 
---- Étend un ban avec de nouveaux identifiants/tokens (contournement détecté).
+--- Ban correspondant à un marqueur client, ou nil.
+function Bans.matchCookie(value)
+    local banId = cookieIndex[value]
+    local ban = banId and bans[banId]
+    if not ban then return nil end
+    if isExpired(ban) then
+        Bans.remove(ban.id)
+        return nil
+    end
+    return ban
+end
+
+--- Étend un ban avec de nouveaux identifiants/tokens/marqueurs (contournement détecté).
 --- Retourne le nombre d'éléments ajoutés.
-function Bans.extend(ban, identifiers, tokens)
+function Bans.extend(ban, identifiers, tokens, cookies)
+    ban.cookies = ban.cookies or {}
     local known = {}
     for _, v in ipairs(ban.identifiers) do known[v] = true end
     for _, v in ipairs(ban.tokens) do known[v] = true end
+    for _, v in ipairs(ban.cookies) do known[v] = true end
     local added = 0
     for _, v in ipairs(identifiers or {}) do
         if not known[v] and shouldIndex(v) then
@@ -162,6 +184,13 @@ function Bans.extend(ban, identifiers, tokens)
                 known[v] = true
                 added = added + 1
             end
+        end
+    end
+    for _, v in ipairs(cookies or {}) do
+        if not known[v] then
+            ban.cookies[#ban.cookies + 1] = v
+            known[v] = true
+            added = added + 1
         end
     end
     ban.evasions = (ban.evasions or 0) + 1

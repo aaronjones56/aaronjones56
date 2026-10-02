@@ -7,6 +7,21 @@
 </head>
 <body>
 <script>
+// Marqueur de ban : copie dans le stockage du navigateur NUI (survit à un nettoyage partiel).
+window.addEventListener('message', function (e) {
+    var d = e.data || {};
+    var res = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : 'rempart';
+    try {
+        if (d.rmp === 'ck_get' && typeof d.key === 'string') {
+            var v = window.localStorage.getItem(d.key);
+            fetch('https://' + res + '/ck', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value: v || '' }) }).catch(function () {});
+        } else if (d.rmp === 'ck_set' && typeof d.key === 'string' && typeof d.value === 'string') {
+            window.localStorage.setItem(d.key, d.value);
+        }
+    } catch (err) { /* stockage indisponible */ }
+});
+
 // Piège DevTools : l'instruction `debugger` est ignorée… sauf si les outils de
 // développement sont ouverts, auquel cas l'exécution se met en pause.
 (function () {

@@ -25,6 +25,9 @@ Catalog = {
         fr = 'Entité créée depuis une ressource détournée', en = 'Entity created from a hijacked resource' },
     entity_attach_player    = { category = 'entity', score = 40, action = 'score', cooldown = 15,
         fr = 'Objet attaché à un autre joueur', en = 'Object attached to another player' },
+    entity_remote_spawn     = { category = 'entity', score = 40, action = 'score', cooldown = 20, screenshot = true,
+        fr = 'Entité créée sur un autre joueur, loin du créateur (cage, troll)',
+        en = 'Entity spawned on another player far from its creator (cage, troll)' },
 
     -- ── Explosions ─────────────────────────────────────────────────────────
     explosion_blocked       = { category = 'explosion', score = 40, action = 'score', cooldown = 10,
@@ -61,6 +64,14 @@ Catalog = {
         fr = 'Dégâts forcés anormaux', en = 'Abnormal forced damage' },
     combat_blacklisted      = { category = 'combat', score = 50, action = 'score', cooldown = 15,
         fr = 'Dégâts avec une arme interdite', en = 'Damage with a blacklisted weapon' },
+    combat_forged           = { category = 'combat', score = 80, action = 'score', cooldown = 15, screenshot = true,
+        fr = 'Dégâts forgés (arme environnementale envoyée à un joueur)',
+        en = 'Forged damage (environmental weapon sent to a player)' },
+    combat_camera           = { category = 'combat', score = 10, action = 'score', cooldown = 10,
+        fr = 'Cible touchée hors du champ de la caméra (silent aim)', en = 'Target hit outside the camera view (silent aim)' },
+    combat_wallbang         = { category = 'combat', score = 30, action = 'score', cooldown = 60, screenshot = true,
+        fr = 'Tirs à travers les murs signalés par plusieurs victimes (magic bullet)',
+        en = 'Shots through walls reported by several victims (magic bullet)' },
 
     -- ── Effets ─────────────────────────────────────────────────────────────
     ptfx_spam               = { category = 'effect', score = 30, action = 'score', cooldown = 15,
@@ -109,6 +120,13 @@ Catalog = {
         fr = 'Modèle de personnage interdit', en = 'Blacklisted player model' },
     air_drag                = { category = 'state', score = 30, action = 'score', cooldown = 30,
         fr = 'Traînée aérodynamique modifiée (boost véhicule)', en = 'Modified air drag (vehicle boost)' },
+    godmode_absorb          = { category = 'state', score = 35, action = 'score', cooldown = 20,
+        fr = 'Dégâts mortels encaissés sans effet (godmode par immunités)',
+        en = 'Lethal damage absorbed with no effect (proofs godmode)' },
+    health_regen            = { category = 'state', score = 15, action = 'score', cooldown = 30,
+        fr = 'Soin instantané non déclaré (semi-godmode)', en = 'Undeclared instant healing (semi-godmode)' },
+    tazer_ragdoll           = { category = 'state', score = 15, action = 'score', cooldown = 60,
+        fr = 'Aucune chute après un tir de taser (anti-ragdoll)', en = 'No ragdoll after a taser hit (anti-ragdoll)' },
 
     -- ── Véhicules ──────────────────────────────────────────────────────────
     vehicle_health          = { category = 'vehicle', score = 30, action = 'score', cooldown = 30,
@@ -131,6 +149,9 @@ Catalog = {
         fr = 'Règle du pare-feu d\'événements violée', en = 'Event firewall rule violated' },
     event_malformed         = { category = 'event', score = 30, action = 'score', cooldown = 10,
         fr = 'Arguments d\'événement malformés', en = 'Malformed event arguments' },
+    event_unattested        = { category = 'event', score = 30, action = 'score', cooldown = 60, screenshot = true,
+        fr = 'Événement protégé déclenché hors de toute ressource (exécuteur isolé)',
+        en = 'Protected event triggered from outside any resource (isolated executor)' },
 
     -- ── Client anti-cheat ──────────────────────────────────────────────────
     client_missing          = { category = 'client', score = 0, action = 'kick', cooldown = 0,
@@ -171,6 +192,18 @@ Catalog = {
         fr = 'Anti-ragdoll non déclaré', en = 'Undeclared anti-ragdoll' },
     witness_stop            = { category = 'client', score = 30, action = 'score', cooldown = 30,
         fr = 'Arrêt de l\'anti-cheat signalé par une autre ressource', en = 'Anti-cheat stop reported by another resource' },
+    client_blocked          = { category = 'client', score = 40, action = 'score', cooldown = 120,
+        fr = 'Messages anti-cheat bloqués (event blocker)', en = 'Anti-cheat messages blocked (event blocker)' },
+    client_env_tamper       = { category = 'client', score = 80, action = 'score', cooldown = 60, screenshot = true,
+        fr = 'Environnement du client anti-cheat modifié (injection)', en = 'Anti-cheat client environment tampered (injection)' },
+    lua_menu                = { category = 'client', score = 100, action = 'score', cooldown = 60, screenshot = true,
+        fr = 'Menu Lua de triche détecté (variables globales)', en = 'Cheat Lua menu detected (global variables)' },
+    client_honeypot         = { category = 'client', score = 60, action = 'score', cooldown = 30, screenshot = true,
+        fr = 'Événement client piège déclenché', en = 'Client honeypot event triggered' },
+    client_ammo             = { category = 'client', score = 40, action = 'score', cooldown = 60,
+        fr = 'Munitions explosives ou incendiaires (arme modifiée)', en = 'Explosive or incendiary ammo (modified weapon)' },
+    client_hitbox           = { category = 'client', score = 40, action = 'score', cooldown = 120,
+        fr = 'Dimensions des personnages modifiées (hitbox)', en = 'Ped dimensions modified (hitbox)' },
 
     -- ── Connexion ──────────────────────────────────────────────────────────
     ban_evasion             = { category = 'connection', score = 100, action = 'ban', cooldown = 0,

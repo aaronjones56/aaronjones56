@@ -11,6 +11,8 @@
       • GetPlayerMaxHealth / MaxArmour, santé et armure courantes
       • IsEntityVisible en mouvement, modèle de ped, caméra libre éloignée
       • GetAirDragMultiplierForPlayersVehicle (boost de vitesse véhicule)
+      • soin instantané non déclaré (semi-godmode : la santé remonte d'un coup, sans
+        script de soin déclaré par le shield ni réanimation)
     Les modificateurs sont quantifiés au transport (8 à 10 bits) : tolérance ±0.02.
 ]]
 
@@ -36,7 +38,10 @@ local function strike(P, key, cond, needed)
 end
 
 local function check(src, P)
-    if Rempart.Players.inGrace(P) then return end
+    if Rempart.Players.inGrace(P) then
+        P.state.lastHealth = nil   -- réapparition/changement de ped : pas de comparaison de santé
+        return
+    end
     local ped = GetPlayerPed(src)
     if not ped or ped == 0 or not DoesEntityExist(ped) then return end
     local health = GetEntityHealth(ped)
@@ -85,6 +90,15 @@ local function check(src, P)
     if armour and armour > cfg.maxArmour + 1 then anomalies[#anomalies + 1] = ('armure %d'):format(armour) end
     if strike(P, 'hp', #anomalies > 0, 2) then
         Rempart.Detect(src, 'health_overflow', { anomalies = table.concat(anomalies, ', ') })
+    end
+
+    -- Soin instantané (semi-godmode). Une remontée depuis l'état « mort » (≤ 101) est une
+    -- réanimation ; un soin légitime est déclaré par le shield (SetEntityHealth…).
+    local prevHealth = P.state.lastHealth
+    P.state.lastHealth = health
+    if cfg.healthRegen and prevHealth and prevHealth > 101 and health - prevHealth >= (cfg.regenThreshold or 40)
+        and not Rempart.Reports.declared(P, 'heal', 12000) then
+        Rempart.Detect(src, 'health_regen', { avant = prevHealth, apres = health, intervalle = cfg.interval .. ' ms' })
     end
 
     local veh = GetVehiclePedIsIn(ped, false)

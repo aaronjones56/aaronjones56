@@ -6,7 +6,7 @@
 local RES = GetCurrentResourceName()
 
 Rempart = {
-    version = '1.0.0',
+    version = '1.1.0',
     res = RES,
     -- Événements du canal sécurisé (dérivés du nom de ressource : renommer la ressource les change).
     EV_C2S = RES .. ':c',
@@ -110,6 +110,8 @@ Rempart.lookup = {
     allowModels = Utils.hashSet(Config.Entities.allowModels),
     attachAllowModels = Utils.hashSet(Config.Entities.attachAllowModels),
     noSpawnResources = Utils.set(Config.Entities.noSpawnResources, true),
+    forgedDamage = Utils.hashSet(Lists.ForgedDamageWeapons),
+    birdCrap = Utils.joaat(Lists.BirdCrap.weapon),
     weaponInfo = {},
 }
 

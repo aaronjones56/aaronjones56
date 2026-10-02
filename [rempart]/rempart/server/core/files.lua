@@ -102,6 +102,26 @@ function Files.scripts(res, side)
     return out
 end
 
+--- La ressource inclut-elle le shield (« @<anti-cheat>/shield.lua » dans son manifeste) ?
+function Files.hasShield(res)
+    local target = '@' .. Rempart.res .. '/shield.lua'
+    for _, key in ipairs(SCRIPT_KEYS.all) do
+        for i = 0, (GetNumResourceMetadata(res, key) or 0) - 1 do
+            if GetResourceMetadata(res, key, i) == target then return true end
+        end
+    end
+    return false
+end
+
+--- Le shield est-il le tout premier script chargé par la ressource ?
+function Files.shieldFirst(res)
+    local target = '@' .. Rempart.res .. '/shield.lua'
+    if GetResourceMetadata(res, 'shared_script', 0) == target then return true end
+    -- sans shared_script, il doit ouvrir la liste des scripts client
+    return (GetNumResourceMetadata(res, 'shared_script') or 0) == 0
+        and GetResourceMetadata(res, 'client_script', 0) == target
+end
+
 --- Toutes les ressources connues du serveur (démarrées ou non).
 function Files.resources(startedOnly)
     local list = {}
