@@ -1,0 +1,117 @@
+local T = dofile('tests/lib/t.lua')
+dofile('[rempart]/rempart/shared/utils.lua')
+
+T.case('joaat == GetHashKey (vecteurs connus)', function()
+    T.eq(Utils.joaat('adder'), 0xB779A091)
+    T.eq(Utils.joaat('ADDER'), 0xB779A091, 'insensible à la casse')
+    T.eq(Utils.joaat('WEAPON_PISTOL'), 0x1B06D571)
+    T.eq(Utils.h32(-1216765807), 0xB779A091, 'hash signé normalisé')
+    T.eq(Utils.h32(3078201489.0), 0xB779A091, 'hash flottant normalisé')
+    T.eq(Utils.h32('adder'), 0xB779A091)
+end)
+
+T.case('hashSet', function()
+    local s = Utils.hashSet({ 'adder', 453432689 })
+    T.ok(s[0xB779A091])
+    T.ok(s[0x1B06D571])
+end)
+
+T.case('parseDuration / formatDuration', function()
+    T.eq(Utils.parseDuration('perm'), 0)
+    T.eq(Utils.parseDuration('30m'), 1800)
+    T.eq(Utils.parseDuration('12h'), 43200)
+    T.eq(Utils.parseDuration('7d'), 604800)
+    T.eq(Utils.parseDuration('7j'), 604800)
+    T.eq(Utils.parseDuration('1d12h'), 129600)
+    T.eq(Utils.parseDuration('2w'), 1209600)
+    T.eq(Utils.parseDuration('15'), 900, 'nombre seul = minutes')
+    T.eq(Utils.parseDuration('abc'), nil)
+    T.eq(Utils.parseDuration('3x'), nil)
+    T.eq(Utils.formatDuration(0), 'définitif')
+    T.eq(Utils.formatDuration(129600), '1j 12h')
+    T.eq(Utils.formatDuration(1800), '30min')
+end)
+
+T.case('géométrie (convention GTA)', function()
+    T.near(Utils.bearing(0, 0, 0, 10), 0)
+    T.near(Utils.bearing(0, 0, -10, 0), 90)
+    T.near(Utils.bearing(0, 0, 0, -10), 180)
+    T.near(Utils.bearing(0, 0, 10, 0), 270)
+    T.near(Utils.angleDiff(350, 10), 20)
+    T.near(Utils.angleDiff(90, 270), 180)
+    local x, y = Utils.headingVector(90)
+    T.near(x, -1, 1e-9); T.near(y, 0, 1e-9)
+end)
+
+T.case('base64 aller-retour binaire', function()
+    local bin = ''
+    for i = 0, 255 do bin = bin .. string.char(i) end
+    T.eq(Utils.base64Decode(Utils.base64Encode(bin)), bin)
+    T.eq(Utils.base64Encode('Man'), 'TWFu')
+    T.eq(Utils.base64Encode('Ma'), 'TWE=')
+    T.eq(Utils.base64Decode('TWE='), 'Ma')
+end)
+
+T.case('TokenBucket', function()
+    local b = Utils.TokenBucket(2, 4, 0)
+    for _ = 1, 4 do T.ok(b:take(0)) end
+    T.ok(not b:take(0), 'seau vide')
+    T.ok(b:take(500), 'recharge 1 jeton après 500ms')
+    T.ok(not b:take(500))
+end)
+
+T.case('Window + distinct', function()
+    local w = Utils.Window(1000)
+    w:add(0, 'a'); w:add(100, 'b'); w:add(200, 'a')
+    T.eq(w:count(200), 3)
+    T.eq(w:distinct(200), 2)
+    T.eq(w:count(1150), 1, 'expiration')
+    for i = 1, 500 do w:add(2000 + i, 'x' .. (i % 7)) end
+    T.eq(w:count(2500), 500)
+    T.eq(w:distinct(2500), 7)
+end)
+
+T.case('Window compactage sous trafic continu', function()
+    local w = Utils.Window(1000)
+    for i = 1, 200000 do w:add(i, i % 13) end
+    T.eq(w:count(200000), 1001)
+    T.eq(w:distinct(200000), 13)
+    T.ok(w.head <= 4200, 'index borné, head=' .. w.head)
+end)
+
+T.case('Ring', function()
+    local r = Utils.Ring(3)
+    r:push(1); r:push(2)
+    T.eq(table.concat(r:list(), ','), '1,2')
+    r:push(3); r:push(4); r:push(5)
+    T.eq(table.concat(r:list(), ','), '3,4,5')
+end)
+
+T.case('inspectValue', function()
+    local L = { maxString = 10, maxDepth = 3, maxNodes = 20, maxNumber = 1e9 }
+    T.ok(Utils.inspectValue({ 1, 'abc', { x = 2 } }, L))
+    T.ok(not Utils.inspectValue(0 / 0, L), 'NaN')
+    T.ok(not Utils.inspectValue(math.huge, L), 'inf')
+    T.ok(not Utils.inspectValue(string.rep('x', 11), L), 'chaîne')
+    T.ok(not Utils.inspectValue({ { { { 1 } } } }, L), 'profondeur')
+    local big = {}
+    for i = 1, 30 do big[i] = i end
+    T.ok(not Utils.inspectValue(big, L), 'volume')
+    T.ok(not Utils.inspectValue(1e12, L), 'nombre démesuré')
+end)
+
+T.case('merge', function()
+    local base = { a = 1, sub = { x = 1, y = 2 }, list = { 1, 2, 3 } }
+    Utils.merge(base, { sub = { y = 5 }, list = { 9 } })
+    T.eq(base.sub.x, 1); T.eq(base.sub.y, 5)
+    T.eq(#base.list, 1); T.eq(base.list[1], 9)
+end)
+
+T.case('chaînes', function()
+    T.eq(Utils.stripColors('^1Hello^7 W\0orld'), 'Hello World')
+    T.eq(Utils.escapeMarkdown('a*b_c'), 'a\\*b\\_c')
+    T.eq(Utils.truncate('abcdef', 5), 'ab...')
+    T.eq(#Utils.randomCode(6), 6)
+end)
+
+return T.finish()
