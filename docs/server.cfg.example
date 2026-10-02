@@ -58,6 +58,11 @@ add_convar_permission rempart read rempart_webhook_bans
 add_convar_permission rempart read rempart_webhook_admin
 add_convar_permission rempart read rempart_webhook_system
 
+# Réseau de serveurs aux bans partagés (oxmysql) : même secret partout pour que le marqueur
+# client posé par un serveur soit reconnu par les autres.
+# set rempart_cookie_secret "une-longue-chaine-aleatoire"
+# add_convar_permission rempart read rempart_cookie_secret
+
 # Vérification VPN facultative (Config.Connection.vpn.enabled = true)
 # set rempart_proxycheck_key "votre-cle"
 # add_convar_permission rempart read rempart_proxycheck_key
@@ -75,5 +80,5 @@ ensure rempart
 ensure rempart_sensor
 ensure screenshot-basic                      # facultatif : captures jointes aux bans
 
-# ... puis vos ressources (framework, jobs, etc.), avec dans leur fxmanifest :
+# ... puis vos ressources (framework, jobs, etc.), avec EN PREMIER dans leur fxmanifest :
 #     shared_script '@rempart/shield.lua'
