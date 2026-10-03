@@ -1,0 +1,59 @@
+name: Bouclier (Android)
+
+on:
+  push:
+    paths:
+      - "bouclier-android/**"
+      - ".github/workflows/bouclier-android.yml"
+    # Pousser une étiquette « bouclier-vX.Y.Z » publie l'APK dans une version GitHub.
+    tags:
+      - "bouclier-v*"
+  pull_request:
+    paths:
+      - "bouclier-android/**"
+      - ".github/workflows/bouclier-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Tests et APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bouclier-android
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Tests, lint et APK signé
+        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleRelease
+
+      - name: APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: Bouclier-apk
+          path: bouclier-android/app/build/outputs/apk/release/*.apk
+
+      - name: Rapports et captures d'écran
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rapports
+          path: |
+            bouclier-android/app/build/reports
+            bouclier-android/app/build/screenshots
+          if-no-files-found: ignore
+
+      - name: Publier la version
+        if: startsWith(github.ref, 'refs/tags/bouclier-v')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: bouclier-android/app/build/outputs/apk/release/*.apk

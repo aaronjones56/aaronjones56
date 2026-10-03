@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Version monochrome (icônes à thème d'Android 13+) : la coche est évidée. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M54,28L76,36L76,52C76,66.5 66.6,77.6 54,82C41.4,77.6 32,66.5 32,52L32,36Z M41.06,55.94L51,65.89L66.94,49.94L63.06,46.06L51,58.11L44.94,52.06Z" />
+</vector>
