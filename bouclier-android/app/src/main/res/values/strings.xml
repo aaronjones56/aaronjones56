@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Bouclier</string>
+    <string name="youtube_player_label">YouTube sans pub</string>
+    <string name="youtube_share_label">Regarder sans pub</string>
 </resources>

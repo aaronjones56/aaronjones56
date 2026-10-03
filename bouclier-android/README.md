@@ -25,11 +25,12 @@ Bouclier bloque les publicités, les traqueurs et les sites malveillants **dans 
 - **Exclusion d'applications** : une application qui fonctionne mal peut être retirée du filtrage.
 - **Statistiques** : requêtes du jour, taux de blocage, graphique heure par heure, domaines les plus bloqués et journal des dernières requêtes. Touchez un domaine pour l'autoriser ou le bloquer.
 - **Choix du serveur DNS** : celui du réseau (par défaut), Cloudflare, Quad9, Google, AdGuard DNS ou vos propres adresses.
+- **YouTube sans pub** : un lecteur intégré où les publicités sont retirées (voir [ci-dessous](#youtube-sans-pub)).
 - Démarrage automatique avec le téléphone, compatibilité avec le « VPN permanent » d'Android, thème sombre ou clair.
 
 ## Installation
 
-1. Téléchargez `Bouclier-1.0.0-release.apk` sur le téléphone (voir [Obtenir l'APK](#obtenir-lapk)).
+1. Téléchargez `Bouclier-1.1.0-release.apk` sur le téléphone (voir [Obtenir l'APK](#obtenir-lapk)).
 2. Ouvrez le fichier. Android demande d'autoriser l'installation depuis cette source : acceptez pour l'application qui a téléchargé le fichier (navigateur, Fichiers…).
 3. Ouvrez Bouclier et touchez l'interrupteur. Android demande deux autorisations :
    - **Notifications** : pour afficher les compteurs ;
@@ -68,9 +69,32 @@ Conseils pour une protection sans interruption (aussi proposés dans l'applicati
 - Un domaine bloqué l'est aussi pour tous ses sous-domaines. Priorité des règles : vos domaines autorisés, vos domaines bloqués, les exceptions des listes, puis les listes.
 - Le DNS chiffré tenté automatiquement par Android (port 853) est refusé immédiatement, ce qui le fait revenir au DNS classique, filtré.
 
+## YouTube sans pub
+
+Dans l'application YouTube, les publicités arrivent des mêmes serveurs que les vidéos et le trafic est chiffré : aucun bloqueur ne peut les retirer sans root, AdGuard compris. Bouclier fait donc comme AdGuard et propose son propre lecteur :
+
+- **depuis l'application YouTube** : sous une vidéo, touchez **Partager › Regarder sans pub** (icône Bouclier). La vidéo s'ouvre dans Bouclier, à l'instant partagé ;
+- **depuis Bouclier** : carte « YouTube sans pub » de l'accueil, ou Paramètres › Regarder YouTube sans pub. On peut ensuite chercher et enchaîner les vidéos ;
+- **depuis un lien** youtube.com ou youtu.be : choisissez Bouclier pour l'ouvrir.
+
+Le lecteur affiche le site mobile de YouTube (thème sombre, plein écran, Shorts, playlists). Un script injecté avant ceux de la page ([`assets/youtube/adblock.js`](app/src/main/assets/youtube/adblock.js)) :
+
+1. retire les annonces des données du lecteur (`adPlacements`, `playerAds`, `adSlots`) et les vidéos sponsorisées des listes, qu'elles viennent de la page ou des requêtes suivantes ;
+2. masque les emplacements publicitaires restants ;
+3. si une annonce démarre quand même, la coupe, l'accélère et touche « Ignorer » dès que possible.
+
+Les requêtes vers les régies (doubleclick, googlesyndication…) et les statistiques publicitaires de YouTube sont en plus bloquées. Le choix « Tout refuser » des cookies est appliqué automatiquement : pas d'écran de consentement.
+
+Limites :
+
+- YouTube modifie régulièrement son site pour contrer les bloqueurs : le script peut devoir être mis à jour. Le banc d'essai [`tools/test-youtube-adblock.cjs`](tools/test-youtube-adblock.cjs) le vérifie dans Chromium (`NODE_PATH=$(npm root -g) node tools/test-youtube-adblock.cjs --live`) ;
+- la connexion à un compte Google peut être refusée dans un lecteur intégré ; la lecture, elle, ne demande pas de compte ;
+- la lecture s'arrête quand on quitte le lecteur ;
+- les conditions d'utilisation de YouTube interdisent les bloqueurs de publicité. YouTube Premium reste le moyen officiel de supprimer les pubs tout en rémunérant les créateurs.
+
 ## Limites (communes à tous les bloqueurs DNS)
 
-- **Publicités intégrées aux vidéos** (YouTube, Instagram, Facebook, Twitch) : elles viennent des mêmes serveurs que les contenus. Un bloqueur DNS ne peut pas les retirer sans casser l'application. Pour YouTube, utilisez un navigateur avec bloqueur (Firefox avec uBlock Origin, Brave…).
+- **Publicités intégrées aux applications** (YouTube, Instagram, Facebook, Twitch) : elles viennent des mêmes serveurs que les contenus. Un bloqueur DNS ne peut pas les retirer sans casser l'application. Pour YouTube, utilisez le [lecteur sans pub](#youtube-sans-pub).
 - **Navigateurs avec « DNS sécurisé »** (Chrome, Brave, Firefox) : si l'option est activée avec un fournisseur précis, désactivez-la.
 - **Bannières vides** : l'emplacement d'une publicité bloquée peut rester visible (Bouclier ne modifie pas les pages).
 - **Délai** : Android garde les adresses en cache quelques minutes. Fermez puis rouvrez l'application concernée.
@@ -86,8 +110,8 @@ Prérequis : JDK 17 ou plus récent et le SDK Android (plateforme 36).
 
 ```bash
 cd bouclier-android
-./gradlew testDebugUnitTest   # 47 tests : paquets, DNS, listes, relais DNS, interface (Robolectric)
-./gradlew assembleRelease     # app/build/outputs/apk/release/Bouclier-1.0.0-release.apk
+./gradlew testDebugUnitTest   # 61 tests : paquets, DNS, listes, relais DNS, liens YouTube, interface (Robolectric)
+./gradlew assembleRelease     # app/build/outputs/apk/release/Bouclier-1.1.0-release.apk
 ```
 
 Les tests d'interface enregistrent des captures dans `app/build/screenshots/`.
@@ -104,6 +128,8 @@ Les tests d'interface enregistrent des captures dans `app/build/screenshots/`.
 | `stats/` | Compteurs, graphique horaire et journal |
 | `data/` | Réglages |
 | `ui/` | Interface Jetpack Compose (accueil, protection, applications, statistiques, paramètres) |
+| `ui/youtube/`, `youtube/` | Lecteur YouTube sans pub : WebView, liens partagés, requêtes bloquées |
+| `assets/youtube/adblock.js` | Script qui retire les publicités des pages YouTube (testé par `tools/test-youtube-adblock.cjs`) |
 
 ## Crédits et licences des listes
 

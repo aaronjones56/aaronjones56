@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-val appVersionName = "1.0.0"
+val appVersionName = "1.1.0"
 
 android {
     namespace = "io.github.aaronjones56.bouclier"
@@ -16,7 +16,7 @@ android {
         applicationId = "io.github.aaronjones56.bouclier"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        versionCode = 2
         versionName = appVersionName
     }
 
@@ -71,13 +71,14 @@ kotlin {
     }
 }
 
-// Fichier produit : Bouclier-1.0.0-release.apk
+// Fichier produit : Bouclier-<version>-release.apk
 base.archivesName.set("Bouclier-$appVersionName")
 
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.webkit)
     implementation(libs.kotlinx.coroutines.android)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

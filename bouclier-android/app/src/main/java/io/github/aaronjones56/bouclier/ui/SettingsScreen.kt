@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PowerSettingsNew
+import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.VpnLock
 import androidx.compose.material3.AlertDialog
@@ -53,6 +54,7 @@ import io.github.aaronjones56.bouclier.ui.components.ClickRow
 import io.github.aaronjones56.bouclier.ui.components.ScreenHeader
 import io.github.aaronjones56.bouclier.ui.components.SectionTitle
 import io.github.aaronjones56.bouclier.ui.components.SwitchRow
+import io.github.aaronjones56.bouclier.ui.youtube.YoutubeActivity
 import io.github.aaronjones56.bouclier.util.SystemSettings
 
 private val BlockResponse.title: String
@@ -151,6 +153,16 @@ fun SettingsScreen(onMessage: (String) -> Unit) {
                 subtitle = "Gérer la notification de protection",
                 onClick = { SystemSettings.openNotificationSettings(context) },
                 icon = Icons.Outlined.Notifications,
+            )
+        }
+
+        item { SectionTitle("YouTube") }
+        item {
+            ClickRow(
+                title = "Regarder YouTube sans pub",
+                subtitle = "Ou, dans l'appli YouTube : Partager › Regarder sans pub.",
+                onClick = { YoutubeActivity.open(context) },
+                icon = Icons.Outlined.SmartDisplay,
             )
         }
 

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Téléchargement des listes de filtres et transfert des requêtes DNS autorisées. -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -39,6 +40,34 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Lecteur YouTube sans publicité : bouton « Partager » de YouTube et liens youtube.com. -->
+        <activity
+            android:name=".ui.youtube.YoutubeActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:exported="true"
+            android:label="@string/youtube_player_label"
+            android:launchMode="singleTask"
+            android:taskAffinity="io.github.aaronjones56.bouclier.youtube">
+            <intent-filter android:label="@string/youtube_share_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <!-- Simple choix « Ouvrir avec » : youtube.com n'est pas notre domaine, rien à vérifier. -->
+            <intent-filter
+                android:label="@string/youtube_share_label"
+                tools:ignore="AppLinkWarning">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="youtube.com" />
+                <data android:host="www.youtube.com" />
+                <data android:host="m.youtube.com" />
+                <data android:host="youtu.be" />
             </intent-filter>
         </activity>
 

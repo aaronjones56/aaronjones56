@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.BatteryAlert
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.VpnLock
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
@@ -64,6 +65,7 @@ import io.github.aaronjones56.bouclier.ui.components.BigToggle
 import io.github.aaronjones56.bouclier.ui.components.SyncButton
 import io.github.aaronjones56.bouclier.ui.components.icon
 import io.github.aaronjones56.bouclier.ui.theme.BouclierTheme
+import io.github.aaronjones56.bouclier.ui.youtube.YoutubeActivity
 import io.github.aaronjones56.bouclier.util.Format
 import io.github.aaronjones56.bouclier.util.SystemSettings
 import io.github.aaronjones56.bouclier.vpn.BouclierVpnService
@@ -114,6 +116,9 @@ fun HomeScreen(controller: ProtectionController, onNavigate: (Tab) -> Unit, onMe
             add(Tip("private_dns", Icons.Outlined.WarningAmber, "Le DNS privé empêche le blocage. Touchez pour corriger.", warning = true, dismissible = false) { showHelp = true })
         }
         add(Tip("missed_ads", Icons.Outlined.Info, "Des publicités passent encore ? Voici comment y remédier.", warning = true) { showHelp = true })
+        add(Tip("youtube", Icons.Outlined.SmartDisplay, "YouTube sans pub : touchez Partager sous une vidéo, puis Bouclier.") {
+            YoutubeActivity.open(context)
+        })
         add(Tip("stats", Icons.Outlined.PieChart, "Voyez ce qui a été bloqué aujourd'hui.") { onNavigate(Tab.STATS) })
         if (batteryOptimized) {
             add(Tip("battery", Icons.Outlined.BatteryAlert, "Empêchez Android de couper la protection.") {
@@ -344,10 +349,15 @@ private fun MissedAdsDialog(privateDns: String?, onDismiss: () -> Unit) {
                         "les paramètres de confidentialité du navigateur.",
                 )
                 HelpSection(
-                    "Publicités intégrées aux vidéos",
-                    "YouTube, Instagram ou Facebook servent leurs publicités depuis les mêmes serveurs que leurs " +
-                        "contenus : un bloqueur DNS ne peut pas les retirer sans casser l'application. Pour " +
-                        "YouTube, préférez un navigateur avec bloqueur intégré (Firefox avec uBlock Origin, Brave…).",
+                    "Publicités YouTube",
+                    "Dans l'application YouTube, les publicités arrivent des mêmes serveurs que les vidéos : " +
+                        "aucun bloqueur ne peut les retirer sans root. Regardez plutôt vos vidéos dans le lecteur " +
+                        "sans pub de Bouclier : sous une vidéo, touchez Partager › Regarder sans pub.",
+                )
+                HelpSection(
+                    "Instagram, Facebook…",
+                    "Ces applications servent leurs publicités depuis les mêmes serveurs que leurs contenus : un " +
+                        "bloqueur DNS ne peut pas les retirer sans casser l'application.",
                 )
                 HelpSection(
                     "Délai",
