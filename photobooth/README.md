@@ -29,9 +29,10 @@ grâce à un QR code.
 13. [Serveur web des photos](#serveur-web-des-photos)
 14. [Sécurité et confidentialité](#sécurité-et-confidentialité)
 15. [Tests automatiques](#tests-automatiques)
-16. [Commandes utiles](#commandes-utiles)
-17. [Dépannage](#dépannage)
-18. [Aller plus loin](#aller-plus-loin)
+16. [Base de données et API locale](#base-de-données-et-api-locale)
+17. [Commandes utiles](#commandes-utiles)
+18. [Dépannage](#dépannage)
+19. [Aller plus loin](#aller-plus-loin)
 
 ---
 
@@ -653,6 +654,41 @@ redémarrage), détection des cadres et erreurs de configuration, API de la born
 complète, impression, limites, erreurs caméra et imprimante), caméra par commande externe, upload (succès, mauvais
 token, coupure réseau) et serveur web (upload, extensions, contenu, taille, path traversal, page inexistante, page
 existante, galerie, rétention, limitation des essais).
+
+---
+
+## Base de données et API locale
+
+La base SQLite `database/photobooth.db` est créée automatiquement au premier démarrage (requêtes toujours
+paramétrées) :
+
+| Table | Colonnes principales |
+|---|---|
+| `events` | `id`, `name`, `slug`, `event_date`, `folder`, `created_at` |
+| `photos` | `id`, `code`, `event_id`, `frame_name`, `shot_count`, `original_path`, `final_path`, `qr_path`, `created_at` (date et heure), `printed`, `printed_at`, `print_count`, `uploaded`, `uploaded_at`, `upload_attempts`, `last_upload_error` |
+| `sessions` | `id`, `event_id`, `frame_name`, `started_at`, `completed_at`, `photo_code` (sessions commencées, même abandonnées) |
+| `settings` | `key`, `value`, `updated_at` (événement actif, imprimante choisie, réglages de l'administration) |
+
+Les chemins de fichiers sont enregistrés relativement à `data/` : le dossier du photobooth peut être déplacé.
+
+Routes du serveur local (utilisées par `kiosk.js` et `admin.js`) :
+
+| Route | Rôle |
+|---|---|
+| `GET /` | Interface de la borne |
+| `GET /api/status` | Vérifications du démarrage et réglages de l'interface |
+| `GET /api/frames` | Cadres disponibles |
+| `GET /api/camera/preview` | Image d'aperçu en direct (JPEG) |
+| `POST /api/session/start` | Démarre une session `{frame_id}` |
+| `POST /api/capture` | Prend la photo suivante `{session_id}` ; la dernière renvoie la photo finale |
+| `POST /api/session/reset` | Abandonne une session inachevée |
+| `POST /api/print/<code>` | Imprime `{copies}` |
+| `GET /photo/<code>`, `/photo/<code>/qr` | Photo finale, QR code |
+| `GET /admin`, `POST /admin/login` | Administration, connexion par PIN |
+| `GET /api/admin/stats` | Tableau de bord |
+| `POST /api/admin/upload`, `GET /api/admin/upload/status` | Upload et progression |
+| `POST /api/admin/test-camera`, `POST /api/admin/test-printer` | Tests du matériel |
+| `GET /admin/logs/download` | Journaux (ZIP) |
 
 ---
 
