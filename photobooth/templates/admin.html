@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr" style="--accent: {{ accent }};">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Administration · {{ title }}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}?v={{ asset_version }}">
+</head>
+<body class="admin{% if not authenticated %} is-login{% endif %}">
+{% if not authenticated %}
+  <main class="login">
+    <form class="login-card" id="login-form" autocomplete="off" novalidate>
+      <div class="login-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h1>Administration</h1>
+      <p class="muted">Saisissez le code PIN</p>
+      <input class="pin-input" id="login-pin" type="password" inputmode="numeric" maxlength="12" autocomplete="off" aria-label="Code PIN" autofocus>
+      <div class="keypad" id="login-keypad">
+        <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+        <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+        <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+        <button type="button" data-key="back" aria-label="Effacer">⌫</button><button type="button" data-key="0">0</button><button type="submit" class="key-ok">OK</button>
+      </div>
+      <p class="form-error" id="login-error" role="alert"></p>
+      <a class="link" href="/">← Retour au photobooth</a>
+    </form>
+  </main>
+{% else %}
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+        <span class="brand-text"><strong>{{ title }}</strong><small>Administration</small></span>
+      </div>
+      <nav class="nav" id="nav">
+        <button class="nav-item is-active" type="button" data-tab="dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg><span>Tableau de bord</span></button>
+        <button class="nav-item" type="button" data-tab="events"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Événements</span></button>
+        <button class="nav-item" type="button" data-tab="photos"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><span>Photos</span></button>
+        <button class="nav-item" type="button" data-tab="upload"><svg viewBox="0 0 24 24"><path d="M16 16l-4-4-4 4M12 12v9"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg><span>Upload</span></button>
+        <button class="nav-item" type="button" data-tab="printer"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span>Imprimante</span></button>
+        <button class="nav-item" type="button" data-tab="frames"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2"/><rect x="6" y="6" width="12" height="12" rx="1"/></svg><span>Cadres</span></button>
+        <button class="nav-item" type="button" data-tab="settings"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span>Réglages</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="nav-item" type="button" id="btn-back-kiosk"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Retour au photobooth</span></button>
+        <button class="nav-item" type="button" id="btn-logout"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span>Déconnexion</span></button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <!-- Tableau de bord -->
+      <section class="panel is-active" data-panel="dashboard">
+        <header class="panel-header">
+          <div>
+            <h1>Tableau de bord</h1>
+            <p class="muted" id="dash-event">Chargement…</p>
+          </div>
+          <button class="btn btn-light" type="button" id="dash-refresh">Actualiser</button>
+        </header>
+        <div class="status-grid" id="status-grid"></div>
+        <div class="kpi-grid" id="kpi-grid"></div>
+        <div class="card">
+          <h2>Actions</h2>
+          <div class="action-grid">
+            <button class="action" type="button" id="act-test-camera"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Tester la caméra</button>
+            <button class="action" type="button" id="act-test-printer"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Tester l'imprimante</button>
+            <button class="action" type="button" data-goto="printer"><svg viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>Changer d'imprimante</button>
+            <button class="action" type="button" data-goto="events"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Changer d'événement</button>
+            <button class="action" type="button" id="act-upload"><svg viewBox="0 0 24 24"><path d="M16 16l-4-4-4 4M12 12v9"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>Uploader maintenant</button>
+            <button class="action" type="button" data-goto="photos"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Voir les photos</button>
+            <a class="action" href="/admin/logs/download"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Télécharger les journaux</a>
+            <button class="action" type="button" id="act-restart"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Redémarrer l'application</button>
+            <button class="action action-danger" type="button" id="act-quit"><svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg>Quitter le kiosk</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Raccourcis de la borne</h2>
+          <ul class="tips">
+            <li><strong>5 touches rapides dans le coin en haut à gauche</strong> de l'écran : menu administrateur (code PIN).</li>
+            <li><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>A</kbd> : administration · <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Q</kbd> : quitter le kiosk.</li>
+            <li>En dernier recours : <kbd>Alt</kbd> + <kbd>F4</kbd> ferme le navigateur.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Événements -->
+      <section class="panel" data-panel="events">
+        <header class="panel-header">
+          <div>
+            <h1>Événements</h1>
+            <p class="muted">Les nouvelles photos sont rangées dans l'événement actif.</p>
+          </div>
+        </header>
+        <div class="card">
+          <h2>Nouvel événement</h2>
+          <form class="form-grid" id="event-form" autocomplete="off">
+            <label class="field">Nom<input name="name" required maxlength="120" placeholder="Festi'Coat 2027"></label>
+            <label class="field">Date<input name="event_date" type="date" required></label>
+            <label class="field">Identifiant (slug)<input name="slug" maxlength="80" placeholder="festicoat-2027" pattern="[a-z0-9\-]+"></label>
+            <label class="check"><input type="checkbox" name="activate" checked> Activer cet événement</label>
+            <div class="form-actions"><button class="btn btn-primary" type="submit">Créer l'événement</button></div>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Tous les événements</h2>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Événement</th><th>Date</th><th>Photos</th><th>Imprimées</th><th>À envoyer</th><th>Taille</th><th></th></tr></thead>
+              <tbody id="events-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Photos -->
+      <section class="panel" data-panel="photos">
+        <header class="panel-header">
+          <div>
+            <h1>Photos</h1>
+            <p class="muted" id="photos-count"></p>
+          </div>
+          <select class="select" id="photos-event" aria-label="Événement"></select>
+        </header>
+        <div class="photo-grid" id="photo-grid"></div>
+        <div class="pager">
+          <button class="btn btn-light" type="button" id="photos-prev">← Précédentes</button>
+          <span id="photos-page"></span>
+          <button class="btn btn-light" type="button" id="photos-next">Suivantes →</button>
+        </div>
+      </section>
+
+      <!-- Upload -->
+      <section class="panel" data-panel="upload">
+        <header class="panel-header">
+          <div>
+            <h1>Upload des photos</h1>
+            <p class="muted">Après l'événement, connectez la borne à Internet puis envoyez les photos vers votre site.</p>
+          </div>
+        </header>
+        <div class="card">
+          <h2>Configuration</h2>
+          <dl class="config-list" id="upload-config"></dl>
+          <p class="notice notice-warning" id="upload-problem" hidden></p>
+        </div>
+        <div class="card">
+          <h2>Photos en attente</h2>
+          <div class="scope">
+            <label class="radio"><input type="radio" name="upload-scope" value="active" checked> Événement actif <strong id="pending-active">0</strong></label>
+            <label class="radio"><input type="radio" name="upload-scope" value="all"> Tous les événements <strong id="pending-all">0</strong></label>
+          </div>
+          <button class="btn btn-primary btn-lg" type="button" id="upload-start">UPLOAD TOUTES LES PHOTOS EN ATTENTE</button>
+          <div class="progress" aria-hidden="true"><div class="progress-bar" id="upload-bar"></div></div>
+          <p class="progress-text" id="upload-text">Aucun upload en cours.</p>
+          <ul class="error-list" id="upload-errors"></ul>
+        </div>
+      </section>
+
+      <!-- Imprimante -->
+      <section class="panel" data-panel="printer">
+        <header class="panel-header">
+          <div>
+            <h1>Imprimante</h1>
+            <p class="muted" id="printer-mode"></p>
+          </div>
+          <button class="btn btn-light" type="button" id="printer-refresh">Actualiser</button>
+        </header>
+        <div class="card">
+          <div class="status-line" id="printer-status"></div>
+          <p class="notice" id="printer-notice" hidden></p>
+          <div class="choice-list" id="printer-list"></div>
+          <div class="form-actions">
+            <button class="btn btn-light" type="button" id="printer-test">Imprimer une page de test</button>
+            <button class="btn btn-primary" type="button" id="printer-save">Utiliser cette imprimante</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Canon SELPHY CP1500</h2>
+          <ul class="tips">
+            <li>Installez le pilote Canon puis vérifiez que l'imprimante apparaît dans <em>Paramètres › Bluetooth et appareils › Imprimantes</em>.</li>
+            <li>Dans les <em>Préférences d'impression</em> : papier <strong>Carte postale (100 x 148 mm)</strong>, orientation <strong>Portrait</strong>, <strong>sans bordure</strong>.</li>
+            <li>Le format 1200 x 1800 pixels correspond exactement à un tirage 10 x 15 cm à 300 dpi.</li>
+            <li>Une page de test permet de vérifier le cadrage : le cadre rose doit être visible sur les quatre bords.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Cadres -->
+      <section class="panel" data-panel="frames">
+        <header class="panel-header">
+          <div>
+            <h1>Cadres</h1>
+            <p class="muted" id="frames-dir"></p>
+          </div>
+          <button class="btn btn-light" type="button" id="frames-reload">Recharger les cadres</button>
+        </header>
+        <div class="card">
+          <h2>Ajouter un cadre</h2>
+          <ol class="tips">
+            <li>Créez un dossier dans <code>static/frames/</code> (lettres, chiffres, tirets), par exemple <code>static/frames/festicoat/</code>.</li>
+            <li>Ajoutez <code>frame.png</code> : 1200 x 1800 pixels, zones transparentes là où la photo doit apparaître.</li>
+            <li>Facultatif : <code>preview.jpg</code> (vignette, sinon générée) et <code>config.json</code> (nom, ordre, emplacements des photos, QR code).</li>
+            <li>Cliquez sur « Recharger les cadres » : le nouveau cadre est proposé immédiatement sur la borne.</li>
+          </ol>
+        </div>
+        <ul class="error-list" id="frames-errors"></ul>
+        <div class="frame-admin-grid" id="frame-admin-grid"></div>
+      </section>
+
+      <!-- Réglages -->
+      <section class="panel" data-panel="settings">
+        <header class="panel-header">
+          <div>
+            <h1>Réglages</h1>
+            <p class="muted">Appliqués immédiatement, sans redémarrage. Les valeurs par défaut viennent du fichier <code>.env</code>.</p>
+          </div>
+        </header>
+        <div class="card">
+          <form class="settings-list" id="settings-form"></form>
+          <div class="form-actions">
+            <button class="btn btn-light" type="button" id="settings-reset">Revenir aux valeurs du .env</button>
+            <button class="btn btn-primary" type="button" id="settings-save">Enregistrer</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Configuration du fichier .env</h2>
+          <dl class="config-list" id="config-list"></dl>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal" id="photo-modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-card modal-wide">
+      <button class="modal-close" type="button" data-close aria-label="Fermer">×</button>
+      <div class="photo-detail">
+        <img class="photo-detail-image" id="photo-detail-image" alt="">
+        <div class="photo-detail-info">
+          <h2 id="photo-detail-code"></h2>
+          <dl class="config-list" id="photo-detail-list"></dl>
+          <img class="photo-detail-qr" id="photo-detail-qr" alt="QR code">
+          <div class="form-actions form-actions-wrap">
+            <button class="btn btn-primary" type="button" id="photo-print">Imprimer</button>
+            <a class="btn btn-light" id="photo-download" href="#">Télécharger</a>
+            <a class="btn btn-light" id="photo-original" href="#">Original</a>
+            <button class="btn btn-danger" type="button" id="photo-delete">Supprimer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="image-modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-card">
+      <button class="modal-close" type="button" data-close aria-label="Fermer">×</button>
+      <h2 id="image-modal-title">Photo de test</h2>
+      <img class="image-modal-img" id="image-modal-img" alt="">
+    </div>
+  </div>
+
+  <div class="modal" id="confirm-modal" role="alertdialog" aria-modal="true" hidden>
+    <div class="modal-card modal-small">
+      <h2 id="confirm-title">Confirmer</h2>
+      <p id="confirm-message"></p>
+      <div class="form-actions">
+        <button class="btn btn-light" type="button" id="confirm-cancel">Annuler</button>
+        <button class="btn btn-primary" type="button" id="confirm-ok">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="spinner" id="overlay-spinner" aria-hidden="true"></div>
+    <h2 id="overlay-title">Redémarrage…</h2>
+    <p id="overlay-text">Le photobooth redémarre, la page se rechargera automatiquement.</p>
+  </div>
+{% endif %}
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='js/admin.js') }}?v={{ asset_version }}"></script>
+</body>
+</html>

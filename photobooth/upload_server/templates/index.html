@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Retrouver ma photo · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="icon" aria-hidden="true">📸</div>
+  <h1>Retrouvez votre photo</h1>
+  <p class="lead">Scannez le QR code reçu au photobooth ou saisissez le code imprimé sur votre photo.</p>
+  <form class="code-form" action="{{ url_for('find') }}" method="get" autocomplete="off">
+    <label class="visually-hidden" for="code">Code photo</label>
+    <input class="code-input" id="code" name="code" placeholder="A7K4-Q92X-B3LM" maxlength="20"
+           autocapitalize="characters" spellcheck="false" required>
+    <button class="button" type="submit">VOIR MA PHOTO</button>
+  </form>
+  {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+</section>
+{% endblock %}

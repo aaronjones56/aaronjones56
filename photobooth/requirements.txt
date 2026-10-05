@@ -1,0 +1,12 @@
+# Photobooth (borne) : Python 3.12 ou plus récent, Windows 10/11 (fonctionne aussi sous Linux/macOS)
+Flask>=3.0
+waitress>=3.0
+python-dotenv>=1.0
+Pillow>=10.3
+qrcode>=7.4
+opencv-python-headless>=4.9
+requests>=2.31
+pywin32>=306; sys_platform == "win32"
+
+# Tests automatiques (python -m pytest)
+pytest>=8.0

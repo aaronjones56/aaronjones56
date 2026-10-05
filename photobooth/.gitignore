@@ -1,0 +1,25 @@
+# Environnement Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Configuration locale (contient le PIN et le token)
+.env
+upload_server/.env
+
+# Données générées par la borne (photos des invités, base, journaux)
+database/*.db*
+data/*
+!data/events/
+data/events/*
+!data/events/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Données du serveur des photos
+upload_server/uploads/*
+!upload_server/uploads/.gitkeep
+upload_server/data/*
+!upload_server/data/.gitkeep

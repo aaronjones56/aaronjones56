@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Photo supprimée · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="icon" aria-hidden="true">🗑️</div>
+  <h1>Cette photo n'est plus disponible.</h1>
+  <p class="lead">
+    {% if retention_days %}Les photos sont supprimées {{ retention_days }} jours après leur mise en ligne pour protéger votre vie privée.
+    {% else %}Elle a été supprimée.{% endif %}
+  </p>
+  <p class="code-line">Code : <strong>{{ code }}</strong></p>
+</section>
+{% endblock %}

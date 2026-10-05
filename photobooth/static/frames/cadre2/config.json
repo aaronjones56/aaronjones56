@@ -1,0 +1,13 @@
+{
+    "name": "Festif",
+    "enabled": true,
+    "order": 20,
+    "orientation": "portrait",
+    "width": 1200,
+    "height": 1800,
+    "qr": {
+        "size": 200,
+        "x": 946,
+        "y": 1546
+    }
+}

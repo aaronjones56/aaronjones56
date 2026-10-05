@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr" style="--accent: {{ accent }};">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>{{ title }}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk.css') }}?v={{ asset_version }}">
+</head>
+<body class="kiosk">
+  <div class="backdrop" aria-hidden="true">
+    <span class="blob blob-a"></span>
+    <span class="blob blob-b"></span>
+    <span class="blob blob-c"></span>
+  </div>
+
+  <main class="app" id="app">
+    <!-- Écran de démarrage -->
+    <section class="screen screen-loading is-active" data-screen="loading" aria-label="Initialisation">
+      <div class="loading-card">
+        <h1 class="brand">{{ title }}</h1>
+        <p class="loading-text" id="loading-text">Initialisation…</p>
+        <ul class="checklist" id="checklist">
+          <li data-check="camera"><span class="check-state"></span><span class="check-label">Caméra</span><span class="check-detail"></span></li>
+          <li data-check="printer"><span class="check-state"></span><span class="check-label">Imprimante</span><span class="check-detail"></span></li>
+          <li data-check="database"><span class="check-state"></span><span class="check-label">Base de données</span><span class="check-detail"></span></li>
+          <li data-check="storage"><span class="check-state"></span><span class="check-label">Stockage</span><span class="check-detail"></span></li>
+        </ul>
+        <button class="btn btn-ghost btn-lg" id="loading-retry" type="button" hidden>RÉESSAYER</button>
+      </div>
+    </section>
+
+    <!-- Accueil -->
+    <section class="screen screen-home" data-screen="home" aria-label="Accueil">
+      <button class="home-touch" id="home-start" type="button">
+        <span class="home-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><rect x="6" y="18" width="52" height="38" rx="9"/><path d="M22 18l4-7h12l4 7"/><circle cx="32" cy="37" r="11"/><circle cx="49" cy="27" r="2.5" class="fill"/></svg>
+        </span>
+        <span class="brand brand-xl">{{ title }}</span>
+        <span class="home-event" id="home-event"></span>
+        <span class="home-hint">Toucher pour commencer</span>
+        <span class="btn btn-primary btn-xl btn-pulse">COMMENCER</span>
+      </button>
+    </section>
+
+    <!-- Choix du cadre -->
+    <section class="screen screen-frames" data-screen="frames" aria-label="Choix du cadre">
+      <header class="screen-header">
+        <h2>Choisissez votre cadre</h2>
+        <p>Touchez le cadre de votre choix</p>
+      </header>
+      <div class="frames-grid" id="frames-grid"></div>
+      <footer class="screen-footer">
+        <button class="btn btn-ghost btn-lg" id="frames-back" type="button">RETOUR</button>
+        <button class="btn btn-primary btn-lg" id="frames-continue" type="button" disabled>CONTINUER</button>
+      </footer>
+    </section>
+
+    <!-- Aperçu et compte à rebours -->
+    <section class="screen screen-preview" data-screen="preview" aria-label="Aperçu">
+      <div class="preview-layout">
+        <div class="preview-stage" id="preview-stage">
+          <canvas class="preview-canvas" id="preview-canvas"></canvas>
+          <div class="preview-placeholder" id="preview-placeholder" hidden>
+            <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="18" width="52" height="38" rx="9"/><path d="M22 18l4-7h12l4 7"/><circle cx="32" cy="37" r="11"/></svg>
+            <p id="preview-placeholder-text">Regardez l'appareil photo</p>
+          </div>
+          <div class="shot-badge" id="shot-badge" hidden></div>
+          <div class="countdown" id="countdown" aria-live="assertive"><span class="countdown-value" id="countdown-value"></span></div>
+        </div>
+        <aside class="preview-side">
+          <h2 id="preview-title">Prêts ?</h2>
+          <p id="preview-subtitle">Placez-vous face à l'écran et souriez !</p>
+          <div class="shot-strip" id="shot-strip" hidden></div>
+          <div class="preview-actions">
+            <button class="btn btn-primary btn-xl" id="btn-shoot" type="button">
+              <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span id="btn-shoot-label">PRENDRE LA PHOTO</span>
+            </button>
+            <button class="btn btn-ghost btn-lg" id="btn-preview-back" type="button">RETOUR</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Traitement -->
+    <section class="screen screen-processing" data-screen="processing" aria-label="Traitement">
+      <div class="spinner" aria-hidden="true"></div>
+      <h2 id="processing-text">Développement de votre photo…</h2>
+    </section>
+
+    <!-- Résultat -->
+    <section class="screen screen-result" data-screen="result" aria-label="Votre photo">
+      <div class="result-layout">
+        <div class="result-photo-wrap">
+          <img class="result-photo" id="result-photo" alt="Votre photo" draggable="false">
+        </div>
+        <div class="result-info">
+          <h2>Votre photo est prête !</h2>
+          <div class="code-card">
+            <img class="code-qr" id="result-qr" alt="QR code de votre photo" draggable="false">
+            <div class="code-text">
+              <span class="code-label">Votre code</span>
+              <span class="code-value" id="result-code"></span>
+              <span class="code-url" id="result-url"></span>
+            </div>
+          </div>
+          <p class="result-notice" id="result-notice"></p>
+          <div class="result-actions">
+            <button class="btn btn-primary btn-lg" id="btn-print" type="button">
+              <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              <span id="btn-print-label">IMPRIMER</span>
+            </button>
+            <button class="btn btn-secondary btn-lg" id="btn-again" type="button">RECOMMENCER</button>
+            <button class="btn btn-ghost btn-lg" id="btn-finish" type="button">TERMINER</button>
+          </div>
+          <p class="print-status" id="print-status" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="idle-warning" id="idle-warning" hidden>
+    <span class="idle-bar"><span id="idle-progress"></span></span>
+    <span id="idle-text">Retour à l'accueil dans 10 s — touchez l'écran pour continuer</span>
+  </div>
+
+  <div class="flash" id="flash" aria-hidden="true"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="modal" id="modal-error" role="alertdialog" aria-modal="true" aria-labelledby="error-title" hidden>
+    <div class="modal-card">
+      <div class="modal-icon modal-icon-error" aria-hidden="true">!</div>
+      <h2 id="error-title">Oups !</h2>
+      <p id="error-message"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-lg" id="error-home" type="button">ACCUEIL</button>
+        <button class="btn btn-primary btn-lg" id="error-retry" type="button">RÉESSAYER</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-copies" role="dialog" aria-modal="true" aria-labelledby="copies-title" hidden>
+    <div class="modal-card">
+      <h2 id="copies-title">Combien de tirages ?</h2>
+      <div class="stepper">
+        <button class="stepper-btn" id="copies-minus" type="button" aria-label="Moins">−</button>
+        <span class="stepper-value" id="copies-value">1</span>
+        <button class="stepper-btn" id="copies-plus" type="button" aria-label="Plus">+</button>
+      </div>
+      <p class="modal-hint" id="copies-hint"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-lg" id="copies-cancel" type="button">ANNULER</button>
+        <button class="btn btn-primary btn-lg" id="copies-confirm" type="button">IMPRIMER</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-pin" role="dialog" aria-modal="true" aria-labelledby="pin-title" hidden>
+    <div class="modal-card modal-pin">
+      <h2 id="pin-title">Code administrateur</h2>
+      <div class="pin-dots" id="pin-dots"></div>
+      <p class="pin-error" id="pin-error"></p>
+      <div class="keypad" id="keypad">
+        <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+        <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+        <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+        <button type="button" data-key="back" aria-label="Effacer">⌫</button><button type="button" data-key="0">0</button><button type="button" data-key="ok" class="key-ok">OK</button>
+      </div>
+      <button class="btn btn-ghost btn-lg" id="pin-cancel" type="button">ANNULER</button>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-menu" role="dialog" aria-modal="true" aria-labelledby="menu-title" hidden>
+    <div class="modal-card">
+      <h2 id="menu-title">Menu administrateur</h2>
+      <div class="menu-actions">
+        <button class="btn btn-primary btn-lg" id="menu-admin" type="button">ADMINISTRATION</button>
+        <button class="btn btn-danger btn-lg" id="menu-quit" type="button">QUITTER LE KIOSK</button>
+        <button class="btn btn-ghost btn-lg" id="menu-close" type="button">FERMER</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="offline" hidden>
+    <div class="spinner" aria-hidden="true"></div>
+    <h2>Reconnexion…</h2>
+    <p>Le photobooth redémarre, merci de patienter.</p>
+  </div>
+
+  <div class="overlay" id="goodbye" hidden>
+    <h2>Photobooth fermé</h2>
+    <p>Vous pouvez éteindre l'écran.</p>
+  </div>
+
+  <div class="secret-corner" id="secret-corner" aria-hidden="true"></div>
+
+  <script src="{{ url_for('static', filename='js/kiosk.js') }}?v={{ asset_version }}"></script>
+</body>
+</html>

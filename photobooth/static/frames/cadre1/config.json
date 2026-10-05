@@ -1,0 +1,21 @@
+{
+    "name": "Classique",
+    "enabled": true,
+    "order": 10,
+    "orientation": "portrait",
+    "width": 1200,
+    "height": 1800,
+    "photo_slots": [
+        {
+            "x": 60,
+            "y": 60,
+            "width": 1080,
+            "height": 1440
+        }
+    ],
+    "qr": {
+        "size": 190,
+        "x": 937,
+        "y": 1556
+    }
+}

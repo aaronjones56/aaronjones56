@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Votre photo · {{ site_name }}{% endblock %}
+{% block head %}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Votre photo · {{ event.name or site_name }}">
+  <meta property="og:url" content="{{ page_url }}">
+  <meta property="og:image" content="{{ og_image }}">
+{% endblock %}
+{% block content %}
+<section class="card card-photo">
+  {% if event.name %}<p class="eyebrow">{{ event.name }}</p>{% endif %}
+  <h1>Votre photo 📸</h1>
+  <a class="photo-frame" href="{{ image_url }}">
+    <img class="photo" src="{{ image_url }}" alt="Votre photo du photobooth"
+         {% if photo.width and photo.height %}width="{{ photo.width }}" height="{{ photo.height }}"{% endif %}>
+  </a>
+  <a class="button button-xl" href="{{ download_url }}" download>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+    TÉLÉCHARGER
+  </a>
+  <p class="code-line">Code : <strong>{{ display_code }}</strong></p>
+  <p class="hint">Sur téléphone, vous pouvez aussi rester appuyé sur la photo puis choisir « Enregistrer l'image ».</p>
+  {% if expires_on %}<p class="hint">Photo disponible jusqu'au {{ expires_on }}.</p>{% endif %}
+</section>
+{% endblock %}

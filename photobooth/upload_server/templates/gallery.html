@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ event.name }} · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="gallery">
+  <header class="gallery-header">
+    <p class="eyebrow">Galerie privée</p>
+    <h1>{{ event.name }}</h1>
+    <p class="lead">{{ photos|length }} photo{{ 's' if photos|length > 1 }} · ne partagez ce lien qu'avec les invités.</p>
+  </header>
+  {% if photos %}
+  <div class="gallery-grid">
+    {% for photo in photos %}
+    <a class="gallery-item" href="{{ url_for('photo_page', raw_code=photo.code) }}">
+      <img src="{{ url_for('gallery_thumb', slug=event.slug, secret=secret, raw_code=photo.code) }}" alt="Photo {{ photo.display_code }}" loading="lazy">
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="card">Aucune photo n'a encore été publiée pour cet événement.</p>
+  {% endif %}
+</section>
+{% endblock %}

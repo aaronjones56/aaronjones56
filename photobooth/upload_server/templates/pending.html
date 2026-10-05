@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Photo bientôt disponible · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="card">
+  {% if invalid %}
+    <div class="icon" aria-hidden="true">🔎</div>
+    <h1>Code invalide</h1>
+    <p class="lead">Le code contient 12 lettres et chiffres, par exemple <strong>A7K4-Q92X-B3LM</strong>.</p>
+  {% else %}
+    <div class="icon" aria-hidden="true">⏳</div>
+    <h1>Votre photo n'est pas encore disponible.</h1>
+    <p class="lead">Les photos seront publiées après l'événement.</p>
+    <p class="code-line">Code : <strong>{{ code }}</strong></p>
+    <p class="hint">Gardez ce lien (ou le QR code) et revenez dans quelques jours.</p>
+    <a class="button" href="{{ request.path }}">ACTUALISER</a>
+  {% endif %}
+  <form class="code-form code-form-small" action="{{ url_for('find') }}" method="get" autocomplete="off">
+    <label class="visually-hidden" for="code">Autre code</label>
+    <input class="code-input" id="code" name="code" placeholder="Autre code" maxlength="20"
+           autocapitalize="characters" spellcheck="false" required>
+    <button class="button button-light" type="submit">OK</button>
+  </form>
+</section>
+{% endblock %}

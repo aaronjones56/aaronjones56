@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Erreur · {{ site_name }}{% endblock %}
+{% block content %}
+<section class="card">
+  {% if status == 429 %}
+    <div class="icon" aria-hidden="true">✋</div>
+    <h1>Trop de tentatives</h1>
+    <p class="lead">Trop de codes incorrects ont été saisis depuis votre connexion. Réessayez dans quelques minutes.</p>
+  {% elif status == 404 %}
+    <div class="icon" aria-hidden="true">🔎</div>
+    <h1>Page introuvable</h1>
+    <p class="lead">Vérifiez le lien ou saisissez votre code photo.</p>
+    <a class="button" href="{{ url_for('index') }}">SAISIR MON CODE</a>
+  {% else %}
+    <div class="icon" aria-hidden="true">⚠️</div>
+    <h1>Une erreur est survenue</h1>
+    <p class="lead">Réessayez dans quelques instants.</p>
+  {% endif %}
+</section>
+{% endblock %}

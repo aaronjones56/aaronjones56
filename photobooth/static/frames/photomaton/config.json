@@ -1,0 +1,57 @@
+{
+    "name": "Bande photomaton",
+    "enabled": true,
+    "order": 40,
+    "orientation": "portrait",
+    "width": 1200,
+    "height": 1800,
+    "photo_slots": [
+        {
+            "x": 40,
+            "y": 40,
+            "width": 520,
+            "height": 484,
+            "shot": 1
+        },
+        {
+            "x": 40,
+            "y": 548,
+            "width": 520,
+            "height": 484,
+            "shot": 2
+        },
+        {
+            "x": 40,
+            "y": 1056,
+            "width": 520,
+            "height": 484,
+            "shot": 3
+        },
+        {
+            "x": 640,
+            "y": 40,
+            "width": 520,
+            "height": 484,
+            "shot": 1
+        },
+        {
+            "x": 640,
+            "y": 548,
+            "width": 520,
+            "height": 484,
+            "shot": 2
+        },
+        {
+            "x": 640,
+            "y": 1056,
+            "width": 520,
+            "height": 484,
+            "shot": 3
+        }
+    ],
+    "qr": {
+        "size": 170,
+        "x": 976,
+        "y": 1572
+    }
+}

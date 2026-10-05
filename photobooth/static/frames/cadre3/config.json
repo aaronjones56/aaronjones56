@@ -1,0 +1,13 @@
+{
+    "name": "Élégant",
+    "enabled": true,
+    "order": 30,
+    "orientation": "portrait",
+    "width": 1200,
+    "height": 1800,
+    "qr": {
+        "size": 180,
+        "x": 920,
+        "y": 1480
+    }
+}

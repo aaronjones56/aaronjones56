@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#16131f">
+  <title>{% block title %}{{ site_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="site-header">
+    <a class="site-name" href="{{ url_for('index') }}">{{ site_name }}</a>
+  </header>
+  <main class="page">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <p>
+      Les photos sont privées : elles ne sont accessibles qu'avec leur code.
+      {% if retention_days %}Elles sont supprimées automatiquement {{ retention_days }} jours après leur mise en ligne.{% endif %}
+    </p>
+    {% if contact_email %}
+    <p>Pour faire supprimer une photo : <a href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>
+    {% endif %}
+  </footer>
+</body>
+</html>
