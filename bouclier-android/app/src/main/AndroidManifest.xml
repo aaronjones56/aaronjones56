@@ -20,6 +20,8 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- Version de l'appli YouTube, citée dans le rapport de détection des pubs. -->
+        <package android:name="com.google.android.youtube" />
     </queries>
 
     <application
@@ -85,6 +87,19 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Filtrage DNS local (VPN) qui bloque les publicités et les traqueurs" />
+        </service>
+
+        <service
+            android:name=".youtube.app.YoutubeAppAdService"
+            android:exported="false"
+            android:label="@string/youtube_app_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/youtube_app_ads" />
         </service>
 
         <receiver

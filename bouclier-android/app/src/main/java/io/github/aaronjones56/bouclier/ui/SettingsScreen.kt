@@ -16,8 +16,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.OndemandVideo
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.FilterAlt
@@ -57,10 +59,12 @@ import io.github.aaronjones56.bouclier.ui.components.ScreenHeader
 import io.github.aaronjones56.bouclier.ui.components.SectionTitle
 import io.github.aaronjones56.bouclier.ui.components.SwitchRow
 import io.github.aaronjones56.bouclier.ui.youtube.YoutubeActivity
+import io.github.aaronjones56.bouclier.ui.youtube.YoutubeAppSetupDialog
 import io.github.aaronjones56.bouclier.util.Format
 import io.github.aaronjones56.bouclier.util.SystemSettings
 import io.github.aaronjones56.bouclier.youtube.YoutubeRulesRepository
 import io.github.aaronjones56.bouclier.youtube.YoutubeRulesState
+import io.github.aaronjones56.bouclier.youtube.app.YoutubeAppAds
 import kotlinx.coroutines.launch
 
 private val BlockResponse.title: String
@@ -85,8 +89,12 @@ fun SettingsScreen(onMessage: (String) -> Unit) {
     var showBlockDialog by rememberSaveable { mutableStateOf(false) }
     var showThemeDialog by rememberSaveable { mutableStateOf(false) }
     var batteryExempt by remember { mutableStateOf(SystemSettings.isIgnoringBatteryOptimizations(context)) }
+    val youtubeAppStats by YoutubeAppAds.stats.collectAsStateWithLifecycle()
+    var youtubeAppEnabled by remember { mutableStateOf(YoutubeAppAds.isEnabled(context)) }
+    var showYoutubeSetup by rememberSaveable { mutableStateOf(false) }
     LifecycleResumeEffect(Unit) {
         batteryExempt = SystemSettings.isIgnoringBatteryOptimizations(context)
+        youtubeAppEnabled = YoutubeAppAds.isEnabled(context)
         onPauseOrDispose { }
     }
 
@@ -167,6 +175,29 @@ fun SettingsScreen(onMessage: (String) -> Unit) {
         item { SectionTitle("YouTube") }
         item {
             ClickRow(
+                title = "Pubs dans l'appli YouTube",
+                subtitle = if (youtubeAppEnabled) {
+                    "Activé · ${Format.count(youtubeAppStats.adsHidden)} pubs masquées, " +
+                        "${Format.count(youtubeAppStats.adsSkipped)} ignorées automatiquement"
+                } else {
+                    "Désactivé — touchez pour l'activer (une seule fois)"
+                },
+                onClick = { showYoutubeSetup = true },
+                icon = Icons.Outlined.OndemandVideo,
+            )
+        }
+        if (youtubeAppEnabled) {
+            item {
+                ClickRow(
+                    title = "Une pub est passée ?",
+                    subtitle = "Envoyez le rapport de détection pour adapter Bouclier à votre version de YouTube.",
+                    onClick = { YoutubeAppAds.shareReport(context) },
+                    icon = Icons.Outlined.BugReport,
+                )
+            }
+        }
+        item {
+            ClickRow(
                 title = "Regarder YouTube sans pub",
                 subtitle = "Ou, dans l'appli YouTube : Partager › Regarder sans pub.",
                 onClick = { YoutubeActivity.open(context) },
@@ -227,6 +258,9 @@ fun SettingsScreen(onMessage: (String) -> Unit) {
             },
             onDismiss = { showBlockDialog = false },
         )
+    }
+    if (showYoutubeSetup) {
+        YoutubeAppSetupDialog(enabled = youtubeAppEnabled, onDismiss = { showYoutubeSetup = false })
     }
     if (showThemeDialog) {
         ChoiceDialog(

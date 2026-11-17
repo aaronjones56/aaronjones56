@@ -6,6 +6,7 @@ import io.github.aaronjones56.bouclier.filter.FilterRepository
 import io.github.aaronjones56.bouclier.stats.StatsRepository
 import io.github.aaronjones56.bouclier.vpn.ProtectionNotification
 import io.github.aaronjones56.bouclier.youtube.YoutubeRulesRepository
+import io.github.aaronjones56.bouclier.youtube.app.YoutubeAppAds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +21,7 @@ class BouclierApp : Application() {
         StatsRepository.init(this)
         FilterRepository.init(this)
         YoutubeRulesRepository.init(this)
+        YoutubeAppAds.init(this)
         ProtectionNotification.createChannel(this)
     }
 }

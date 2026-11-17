@@ -25,12 +25,12 @@ Bouclier bloque les publicités, les traqueurs et les sites malveillants **dans 
 - **Exclusion d'applications** : une application qui fonctionne mal peut être retirée du filtrage.
 - **Statistiques** : requêtes du jour, taux de blocage, graphique heure par heure, domaines les plus bloqués et journal des dernières requêtes. Touchez un domaine pour l'autoriser ou le bloquer.
 - **Choix du serveur DNS** : celui du réseau (par défaut), Cloudflare, Quad9, Google, AdGuard DNS ou vos propres adresses.
-- **YouTube sans pub** : un lecteur intégré où les publicités sont retirées (voir [ci-dessous](#youtube-sans-pub)).
+- **YouTube sans pub** : un lecteur intégré où les publicités sont retirées, et le blocage des pubs dans l'appli YouTube officielle (voir [ci-dessous](#youtube-sans-pub)).
 - Démarrage automatique avec le téléphone, compatibilité avec le « VPN permanent » d'Android, thème sombre ou clair.
 
 ## Installation
 
-1. Téléchargez `Bouclier-1.2.0-release.apk` sur le téléphone (voir [Obtenir l'APK](#obtenir-lapk)).
+1. Téléchargez `Bouclier-1.3.0-release.apk` sur le téléphone (voir [Obtenir l'APK](#obtenir-lapk)).
 2. Ouvrez le fichier. Android demande d'autoriser l'installation depuis cette source : acceptez pour l'application qui a téléchargé le fichier (navigateur, Fichiers…).
 3. Ouvrez Bouclier et touchez l'interrupteur. Android demande deux autorisations :
    - **Notifications** : pour afficher les compteurs ;
@@ -71,7 +71,28 @@ Conseils pour une protection sans interruption (aussi proposés dans l'applicati
 
 ## YouTube sans pub
 
-Dans l'application YouTube, les publicités arrivent des mêmes serveurs que les vidéos et le trafic est chiffré : aucun bloqueur ne peut les retirer sans root, AdGuard compris. Bouclier fait donc comme AdGuard et propose son propre lecteur :
+Bouclier propose deux façons de regarder YouTube sans pub.
+
+### Dans l'appli YouTube officielle
+
+Activez une fois **Pubs dans l'appli YouTube** (carte de l'accueil, ou Paramètres › YouTube), puis utilisez YouTube comme d'habitude. Un service d'accessibilité, limité à l'appli YouTube (et YouTube Music), surveille le lecteur. Dès qu'une pub apparaît :
+
+1. le son est coupé ;
+2. la pub est cachée derrière un écran noir « Pub masquée par Bouclier » (les touchers le traversent) ;
+3. le bouton « Ignorer » est touché automatiquement dès que YouTube le propose (au bout de 5 s) ;
+4. à la fin de la pub, le son et l'image reviennent.
+
+Activation : Réglages Android › Accessibilité › « Bouclier — pubs YouTube ». Sur Android 13 et plus, une appli installée hors Play Store doit d'abord recevoir l'autorisation : Infos de l'appli › ⋮ › « Autoriser les paramètres restreints ». La fenêtre d'aide de Bouclier guide pas à pas.
+
+Limites, qui tiennent à Android et non à Bouclier :
+
+- dans l'appli, la pub arrive chiffrée avec la vidéo et protégée contre l'interception : sans root, aucune appli ne peut l'empêcher de se charger. Bouclier la rend muette et invisible, et la passe dès que YouTube le permet ; les pubs non désactivables (6 à 30 s) restent muettes et cachées jusqu'à leur fin ;
+- la détection repose sur ce que l'appli affiche (identifiants des vues publicitaires, « Sponsorisé · 0:15 », « Ignorer »…). Si YouTube change son interface et qu'une pub passe, Paramètres › **Une pub est passée ?** partage un rapport (identifiants et libellés liés aux pubs uniquement, rien d'autre de l'écran) pour adapter la détection ;
+- le service ne voit que l'appli YouTube : Android ne lui envoie rien des autres applications, et rien n'est enregistré ni envoyé.
+
+### Dans le lecteur de Bouclier (aucune pub du tout)
+
+Pour ne voir aucune pub, même pas un instant, ouvrez la vidéo dans le lecteur de Bouclier, qui retire les pubs avant même qu'elles ne se chargent :
 
 - **depuis l'application YouTube** : sous une vidéo, touchez **Partager › Regarder sans pub** (icône Bouclier). La vidéo s'ouvre dans Bouclier, à l'instant partagé ;
 - **depuis Bouclier** : carte « YouTube sans pub » de l'accueil, ou Paramètres › Regarder YouTube sans pub. On peut ensuite chercher et enchaîner les vidéos ;
@@ -96,7 +117,7 @@ Limites :
 
 ## Limites (communes à tous les bloqueurs DNS)
 
-- **Publicités intégrées aux applications** (YouTube, Instagram, Facebook, Twitch) : elles viennent des mêmes serveurs que les contenus. Un bloqueur DNS ne peut pas les retirer sans casser l'application. Pour YouTube, utilisez le [lecteur sans pub](#youtube-sans-pub).
+- **Publicités intégrées aux applications** (YouTube, Instagram, Facebook, Twitch) : elles viennent des mêmes serveurs que les contenus. Un bloqueur DNS ne peut pas les retirer sans casser l'application. Pour YouTube, voir [YouTube sans pub](#youtube-sans-pub).
 - **Navigateurs avec « DNS sécurisé »** (Chrome, Brave, Firefox) : si l'option est activée avec un fournisseur précis, désactivez-la.
 - **Bannières vides** : l'emplacement d'une publicité bloquée peut rester visible (Bouclier ne modifie pas les pages).
 - **Délai** : Android garde les adresses en cache quelques minutes. Fermez puis rouvrez l'application concernée.
@@ -112,8 +133,8 @@ Prérequis : JDK 17 ou plus récent et le SDK Android (plateforme 36).
 
 ```bash
 cd bouclier-android
-./gradlew testDebugUnitTest   # 78 tests : paquets, DNS, listes, relais DNS, règles et lecteur YouTube, interface (Robolectric)
-./gradlew assembleRelease     # app/build/outputs/apk/release/Bouclier-1.2.0-release.apk
+./gradlew testDebugUnitTest   # 96 tests : paquets, DNS, listes, relais DNS, règles et lecteur YouTube, pubs de l'appli YouTube, interface (Robolectric)
+./gradlew assembleRelease     # app/build/outputs/apk/release/Bouclier-1.3.0-release.apk
 NODE_PATH=$(npm root -g) node tools/test-youtube-adblock.cjs   # anti-pub YouTube dans Chromium (Playwright)
 ```
 
@@ -132,6 +153,7 @@ Les tests d'interface enregistrent des captures dans `app/build/screenshots/` ; 
 | `data/` | Réglages |
 | `ui/` | Interface Jetpack Compose (accueil, protection, applications, statistiques, paramètres) |
 | `ui/youtube/`, `youtube/` | Lecteur YouTube sans pub : WebView, liens partagés, requêtes bloquées, lecture des listes AdGuard / uBlock Origin (`YoutubeRules.kt`), assemblage des scripts (`YoutubeScriptBuilder.kt`), téléchargement et mise à jour (`YoutubeRulesRepository.kt`) |
+| `youtube/app/` | Pubs de l'appli YouTube : détection à l'écran (`AppAdDetector.kt`), service d'accessibilité (`YoutubeAppAdService.kt`), compteurs et rapport |
 | `assets/youtube/` | Script intégré `adblock.js`, bibliothèque AdGuard Scriptlets (`scriptlets.corelibs.json`), règles fournies avec l'APK (`default-rules-*.txt`) |
 
 ## Crédits et licences des listes

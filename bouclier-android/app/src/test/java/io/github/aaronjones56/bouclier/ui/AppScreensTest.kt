@@ -50,6 +50,16 @@ class AppScreensTest {
     }
 
     @Test
+    fun youtubeAppSetupExplainsTheOneTimeActivation() {
+        compose.onNodeWithText("Pubs dans l'appli YouTube : touchez pour les bloquer.").performClick()
+        compose.onNodeWithText("Bloquer les pubs dans l'appli YouTube").assertIsDisplayed()
+        compose.onNodeWithText("À faire une seule fois").assertIsDisplayed()
+        compose.onNodeWithText("« Paramètre restreint » ?").assertIsDisplayed()
+        compose.onNodeWithText("Infos de l'appli").assertIsDisplayed()
+        compose.onNodeWithText("Ouvrir les réglages").assertIsDisplayed()
+    }
+
+    @Test
     fun missedAdsHelpOpens() {
         compose.onNodeWithText("Des publicités passent encore ? Voici comment y remédier.").performClick()
         compose.onNodeWithText("Publicités non bloquées").assertIsDisplayed()

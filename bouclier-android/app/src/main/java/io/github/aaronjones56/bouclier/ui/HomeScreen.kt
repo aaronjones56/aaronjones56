@@ -66,9 +66,11 @@ import io.github.aaronjones56.bouclier.ui.components.SyncButton
 import io.github.aaronjones56.bouclier.ui.components.icon
 import io.github.aaronjones56.bouclier.ui.theme.BouclierTheme
 import io.github.aaronjones56.bouclier.ui.youtube.YoutubeActivity
+import io.github.aaronjones56.bouclier.ui.youtube.YoutubeAppSetupDialog
 import io.github.aaronjones56.bouclier.util.Format
 import io.github.aaronjones56.bouclier.util.SystemSettings
 import io.github.aaronjones56.bouclier.vpn.BouclierVpnService
+import io.github.aaronjones56.bouclier.youtube.app.YoutubeAppAds
 import kotlinx.coroutines.launch
 
 private val HOME_CATEGORIES = listOf(
@@ -102,18 +104,32 @@ fun HomeScreen(controller: ProtectionController, onNavigate: (Tab) -> Unit, onMe
     val stats by remember { StatsRepository.snapshots(1000) }
         .collectAsStateWithLifecycle(initialValue = remember { StatsRepository.snapshot() })
 
+    val youtubeAppStats by YoutubeAppAds.stats.collectAsStateWithLifecycle()
+
     var privateDns by remember { mutableStateOf<String?>(null) }
     var batteryOptimized by remember { mutableStateOf(false) }
+    var youtubeAppEnabled by remember { mutableStateOf(YoutubeAppAds.isEnabled(context)) }
     LifecycleResumeEffect(Unit) {
         privateDns = SystemSettings.privateDnsHostname(context)
         batteryOptimized = !SystemSettings.isIgnoringBatteryOptimizations(context)
+        youtubeAppEnabled = YoutubeAppAds.isEnabled(context)
         onPauseOrDispose { }
     }
     var showHelp by rememberSaveable { mutableStateOf(false) }
+    var showYoutubeSetup by rememberSaveable { mutableStateOf(false) }
 
     val tips = buildList {
         if (privateDns != null) {
             add(Tip("private_dns", Icons.Outlined.WarningAmber, "Le DNS privé empêche le blocage. Touchez pour corriger.", warning = true, dismissible = false) { showHelp = true })
+        }
+        if (youtubeAppEnabled) {
+            add(Tip("youtube_app", Icons.Outlined.SmartDisplay, youtubeAppSummary(youtubeAppStats.adsHidden), dismissible = false) {
+                showYoutubeSetup = true
+            })
+        } else {
+            add(Tip("youtube_app", Icons.Outlined.SmartDisplay, "Pubs dans l'appli YouTube : touchez pour les bloquer.", warning = true, dismissible = false) {
+                showYoutubeSetup = true
+            })
         }
         add(Tip("missed_ads", Icons.Outlined.Info, "Des publicités passent encore ? Voici comment y remédier.", warning = true) { showHelp = true })
         add(Tip("youtube", Icons.Outlined.SmartDisplay, "YouTube sans pub : touchez Partager sous une vidéo, puis Bouclier.") {
@@ -149,6 +165,15 @@ fun HomeScreen(controller: ProtectionController, onNavigate: (Tab) -> Unit, onMe
     if (showHelp) {
         MissedAdsDialog(privateDns = privateDns, onDismiss = { showHelp = false })
     }
+    if (showYoutubeSetup) {
+        YoutubeAppSetupDialog(enabled = youtubeAppEnabled, onDismiss = { showYoutubeSetup = false })
+    }
+}
+
+private fun youtubeAppSummary(adsHidden: Int): String = when (adsHidden) {
+    0 -> "Pubs de l'appli YouTube : bloquées dès qu'elles apparaissent."
+    1 -> "Appli YouTube : 1 pub bloquée."
+    else -> "Appli YouTube : ${Format.count(adsHidden)} pubs bloquées."
 }
 
 /** Contenu de l'écran d'accueil, sans état propre (affichable tel quel dans les tests). */
@@ -350,9 +375,10 @@ private fun MissedAdsDialog(privateDns: String?, onDismiss: () -> Unit) {
                 )
                 HelpSection(
                     "Publicités YouTube",
-                    "Dans l'application YouTube, les publicités arrivent des mêmes serveurs que les vidéos : " +
-                        "aucun bloqueur ne peut les retirer sans root. Regardez plutôt vos vidéos dans le lecteur " +
-                        "sans pub de Bouclier : sous une vidéo, touchez Partager › Regarder sans pub.",
+                    "Dans l'application YouTube, les publicités arrivent des mêmes serveurs que les vidéos : un " +
+                        "filtrage DNS ne peut pas les retirer. Activez « Pubs de l'appli YouTube » (carte de " +
+                        "l'accueil) : Bouclier coupe le son, cache la pub et la passe dès que possible. Pour " +
+                        "aucune pub du tout : Partager › Regarder sans pub.",
                 )
                 HelpSection(
                     "Instagram, Facebook…",

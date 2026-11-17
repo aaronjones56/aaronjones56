@@ -3,4 +3,6 @@
     <string name="app_name">Bouclier</string>
     <string name="youtube_player_label">YouTube sans pub</string>
     <string name="youtube_share_label">Regarder sans pub</string>
+    <string name="youtube_app_service_label">Bouclier — pubs YouTube</string>
+    <string name="youtube_app_service_description">Bloque les publicités dans l\'application YouTube : dès qu\'une pub apparaît, Bouclier coupe le son, la masque et touche « Ignorer » dès que YouTube le permet. Bouclier ne lit que l\'écran de l\'application YouTube (et YouTube Music) et n\'envoie rien.</string>
 </resources>

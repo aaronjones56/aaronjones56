@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Service limité à l'appli YouTube : il ne reçoit rien des autres applications. -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeWindowsChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/youtube_app_service_description"
+    android:isAccessibilityTool="false"
+    android:notificationTimeout="100"
+    android:packageNames="com.google.android.youtube,com.google.android.apps.youtube.music"
+    tools:ignore="UnusedAttribute" />
