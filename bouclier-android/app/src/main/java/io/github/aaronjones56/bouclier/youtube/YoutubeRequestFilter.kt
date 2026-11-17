@@ -5,7 +5,8 @@ import java.net.URI
 
 /**
  * Requêtes à bloquer dans le lecteur YouTube : domaines des listes de filtres (régies,
- * traqueurs) et adresses que YouTube réserve aux publicités.
+ * traqueurs), adresses que YouTube réserve aux publicités et règles réseau des listes
+ * AdGuard et uBlock Origin.
  */
 object YoutubeRequestFilter {
 
@@ -20,7 +21,7 @@ object YoutubeRequestFilter {
         "/youtubei/v1/player/ad_break",
     )
 
-    fun shouldBlock(url: String, matcher: DomainMatcher): Boolean {
+    fun shouldBlock(url: String, matcher: DomainMatcher, rules: List<Regex> = emptyList()): Boolean {
         val uri = try {
             URI(url)
         } catch (e: Exception) {
@@ -30,8 +31,8 @@ object YoutubeRequestFilter {
         if (matcher.verdict(host).blocked) return true
         if (host == "youtube.com" || host.endsWith(".youtube.com")) {
             val path = uri.rawPath.orEmpty()
-            return AD_PATHS.any { path.startsWith(it) }
+            if (AD_PATHS.any { path.startsWith(it) }) return true
         }
-        return false
+        return rules.any { it.containsMatchIn(url) }
     }
 }

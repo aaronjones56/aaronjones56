@@ -25,6 +25,7 @@ import io.github.aaronjones56.bouclier.data.SettingsRepository
 import io.github.aaronjones56.bouclier.filter.FilterRepository
 import io.github.aaronjones56.bouclier.stats.StatsRepository
 import io.github.aaronjones56.bouclier.ui.MainActivity
+import io.github.aaronjones56.bouclier.youtube.YoutubeRulesRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -327,6 +328,10 @@ class BouclierVpnService : VpnService() {
                 // Lancé hors du service : un téléchargement commencé va à son terme même si
                 // la protection est coupée entre-temps.
                 AppScope.launch { FilterRepository.update(force = false) }.join()
+            }
+            // Règles du lecteur YouTube : YouTube change souvent, les listes suivent.
+            if (autoUpdate && YoutubeRulesRepository.isUpdateDue() && isUnmetered()) {
+                AppScope.launch { YoutubeRulesRepository.update(force = false) }.join()
             }
             delay(if (FilterRepository.hasMissingLists()) RETRY_MISSING_LISTS_MS else UPDATE_CHECK_INTERVAL_MS)
         }

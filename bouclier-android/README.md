@@ -30,7 +30,7 @@ Bouclier bloque les publicités, les traqueurs et les sites malveillants **dans 
 
 ## Installation
 
-1. Téléchargez `Bouclier-1.1.0-release.apk` sur le téléphone (voir [Obtenir l'APK](#obtenir-lapk)).
+1. Téléchargez `Bouclier-1.2.0-release.apk` sur le téléphone (voir [Obtenir l'APK](#obtenir-lapk)).
 2. Ouvrez le fichier. Android demande d'autoriser l'installation depuis cette source : acceptez pour l'application qui a téléchargé le fichier (navigateur, Fichiers…).
 3. Ouvrez Bouclier et touchez l'interrupteur. Android demande deux autorisations :
    - **Notifications** : pour afficher les compteurs ;
@@ -77,17 +77,19 @@ Dans l'application YouTube, les publicités arrivent des mêmes serveurs que les
 - **depuis Bouclier** : carte « YouTube sans pub » de l'accueil, ou Paramètres › Regarder YouTube sans pub. On peut ensuite chercher et enchaîner les vidéos ;
 - **depuis un lien** youtube.com ou youtu.be : choisissez Bouclier pour l'ouvrir.
 
-Le lecteur affiche le site mobile de YouTube (thème sombre, plein écran, Shorts, playlists). Un script injecté avant ceux de la page ([`assets/youtube/adblock.js`](app/src/main/assets/youtube/adblock.js)) :
+Le lecteur affiche le site mobile de YouTube (thème sombre, plein écran, Shorts, playlists). Comme une extension AdGuard ou uBlock Origin dans un navigateur, Bouclier **intercepte les réponses de YouTube et en retire les annonces avant que le lecteur ne les lise** : le lecteur ne sait pas qu'une pub était prévue, la vidéo démarre directement. Pour cela, des scripts sont injectés au démarrage de chaque page, avant ceux de YouTube, dans la page et dans ses cadres :
 
-1. retire les annonces des données du lecteur (`adPlacements`, `playerAds`, `adSlots`) et les vidéos sponsorisées des listes, qu'elles viennent de la page ou des requêtes suivantes ;
-2. masque les emplacements publicitaires restants ;
-3. si une annonce démarre quand même, la coupe, l'accélère et touche « Ignorer » dès que possible.
+1. **les règles YouTube des extensions** : celles d'[AdGuard Base](https://github.com/AdguardTeam/AdguardFilters) (version pour extensions Chromium) et d'[uBlock Origin](https://github.com/uBlockOrigin/uAssets) (*uBlock filters* et *Quick fixes*), exécutées par la bibliothèque [AdGuard Scriptlets](https://github.com/AdguardTeam/Scriptlets) — le même moteur que les extensions et applications d'AdGuard. Ces règles retirent `adPlacements`, `adSlots` et `playerAds` des données du lecteur (page, `fetch`, `XMLHttpRequest`, `JSON.parse`), les vidéos et Shorts sponsorisés des listes, réécrivent les réponses `get_watch`, masquent les emplacements publicitaires et bloquent les adresses publicitaires de YouTube ;
+2. **le script intégré** ([`assets/youtube/adblock.js`](app/src/main/assets/youtube/adblock.js)), qui fait le même travail de son côté, en filet de sécurité, et qui, si une annonce démarre quand même, la coupe, l'accélère et touche « Ignorer » dès que possible.
+
+Les règles sont **mises à jour automatiquement**, comme dans les extensions : à l'ouverture du lecteur si elles ont plus de 12 heures, et en Wi-Fi en arrière-plan (Paramètres › Règles anti-pub YouTube pour forcer la mise à jour). Seules les lignes qui concernent YouTube sont gardées ; les blocs conditionnels des listes (`!#if`), les exceptions et les règles annulées sont respectés. Une copie des règles du jour de la compilation est fournie dans l'APK pour fonctionner dès la première ouverture.
 
 Les requêtes vers les régies (doubleclick, googlesyndication…) et les statistiques publicitaires de YouTube sont en plus bloquées. Le choix « Tout refuser » des cookies est appliqué automatiquement : pas d'écran de consentement.
 
 Limites :
 
-- YouTube modifie régulièrement son site pour contrer les bloqueurs : le script peut devoir être mis à jour. Le banc d'essai [`tools/test-youtube-adblock.cjs`](tools/test-youtube-adblock.cjs) le vérifie dans Chromium (`NODE_PATH=$(npm root -g) node tools/test-youtube-adblock.cjs --live`) ;
+- YouTube modifie régulièrement son site pour contrer les bloqueurs. Les listes d'AdGuard et d'uBlock Origin suivent ces changements (souvent en quelques heures) et Bouclier les retélécharge ; il peut arriver, comme dans les extensions, que des pubs passent entre deux mises à jour ;
+- le banc d'essai [`tools/test-youtube-adblock.cjs`](tools/test-youtube-adblock.cjs) vérifie dans Chromium le script intégré, les règles des listes seules, puis l'ensemble, sur des réponses simulées contenant des annonces ; `--live` vérifie en plus que le vrai m.youtube.com fonctionne avec les scripts (YouTube ne diffuse pas forcément de pub à la machine de test) ;
 - la connexion à un compte Google peut être refusée dans un lecteur intégré ; la lecture, elle, ne demande pas de compte ;
 - la lecture s'arrête quand on quitte le lecteur ;
 - les conditions d'utilisation de YouTube interdisent les bloqueurs de publicité. YouTube Premium reste le moyen officiel de supprimer les pubs tout en rémunérant les créateurs.
@@ -110,11 +112,12 @@ Prérequis : JDK 17 ou plus récent et le SDK Android (plateforme 36).
 
 ```bash
 cd bouclier-android
-./gradlew testDebugUnitTest   # 61 tests : paquets, DNS, listes, relais DNS, liens YouTube, interface (Robolectric)
-./gradlew assembleRelease     # app/build/outputs/apk/release/Bouclier-1.1.0-release.apk
+./gradlew testDebugUnitTest   # 78 tests : paquets, DNS, listes, relais DNS, règles et lecteur YouTube, interface (Robolectric)
+./gradlew assembleRelease     # app/build/outputs/apk/release/Bouclier-1.2.0-release.apk
+NODE_PATH=$(npm root -g) node tools/test-youtube-adblock.cjs   # anti-pub YouTube dans Chromium (Playwright)
 ```
 
-Les tests d'interface enregistrent des captures dans `app/build/screenshots/`.
+Les tests d'interface enregistrent des captures dans `app/build/screenshots/` ; le test du lecteur YouTube écrit les scripts injectés dans `app/build/youtube-scripts/`, que le banc d'essai Chromium charge.
 
 **Signature** : l'APK est signé avec `app/bouclier.keystore`, versionné avec le projet (mots de passe publics, comme la clé « debug » d'Android). Ainsi, toutes les compilations, locales ou sur GitHub, produisent des APK qui s'installent par-dessus les précédents. Pour publier sur un store, créez votre propre clé et gardez-la secrète.
 
@@ -128,8 +131,8 @@ Les tests d'interface enregistrent des captures dans `app/build/screenshots/`.
 | `stats/` | Compteurs, graphique horaire et journal |
 | `data/` | Réglages |
 | `ui/` | Interface Jetpack Compose (accueil, protection, applications, statistiques, paramètres) |
-| `ui/youtube/`, `youtube/` | Lecteur YouTube sans pub : WebView, liens partagés, requêtes bloquées |
-| `assets/youtube/adblock.js` | Script qui retire les publicités des pages YouTube (testé par `tools/test-youtube-adblock.cjs`) |
+| `ui/youtube/`, `youtube/` | Lecteur YouTube sans pub : WebView, liens partagés, requêtes bloquées, lecture des listes AdGuard / uBlock Origin (`YoutubeRules.kt`), assemblage des scripts (`YoutubeScriptBuilder.kt`), téléchargement et mise à jour (`YoutubeRulesRepository.kt`) |
+| `assets/youtube/` | Script intégré `adblock.js`, bibliothèque AdGuard Scriptlets (`scriptlets.corelibs.json`), règles fournies avec l'APK (`default-rules-*.txt`) |
 
 ## Crédits et licences des listes
 
@@ -138,4 +141,10 @@ Les tests d'interface enregistrent des captures dans `app/build/screenshots/`.
 - [StevenBlack hosts](https://github.com/StevenBlack/hosts) — MIT
 - [malware-filter](https://gitlab.com/malware-filter) — Phishing Filter
 
-Les listes sont téléchargées depuis leur source et ne sont pas incluses dans l'APK. Bouclier est un projet indépendant, sans lien avec AdGuard ni avec les auteurs de ces listes.
+Lecteur YouTube :
+
+- [AdGuard Base filter](https://github.com/AdguardTeam/AdguardFilters) — GPL-3.0
+- [uBlock Origin — uAssets](https://github.com/uBlockOrigin/uAssets) (*uBlock filters*, *Quick fixes*) — GPL-3.0
+- [AdGuard Scriptlets](https://github.com/AdguardTeam/Scriptlets) 2.6.0 — GPL-3.0, incluse dans l'APK avec sa licence (`assets/youtube/LICENSE-adguard-scriptlets.txt`)
+
+Les listes DNS sont téléchargées depuis leur source et ne sont pas incluses dans l'APK ; pour YouTube, seul un extrait des règles qui le concernent l'est. Bouclier est un projet indépendant, sans lien avec AdGuard, uBlock Origin ni les auteurs de ces listes.

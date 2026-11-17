@@ -364,7 +364,7 @@ object FilterRepository {
         AppScope.launch { rebuildMatcher() }
     }
 
-    private fun describe(e: Exception): String = when (e) {
+    internal fun describe(e: Exception): String = when (e) {
         is UnknownHostException -> "Pas de connexion Internet"
         is SocketTimeoutException -> "Le serveur ne répond pas"
         is SSLException -> "Connexion sécurisée impossible"

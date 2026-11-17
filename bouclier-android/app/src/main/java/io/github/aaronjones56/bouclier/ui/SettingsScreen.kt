@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PowerSettingsNew
+import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.VpnLock
@@ -33,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,7 +57,11 @@ import io.github.aaronjones56.bouclier.ui.components.ScreenHeader
 import io.github.aaronjones56.bouclier.ui.components.SectionTitle
 import io.github.aaronjones56.bouclier.ui.components.SwitchRow
 import io.github.aaronjones56.bouclier.ui.youtube.YoutubeActivity
+import io.github.aaronjones56.bouclier.util.Format
 import io.github.aaronjones56.bouclier.util.SystemSettings
+import io.github.aaronjones56.bouclier.youtube.YoutubeRulesRepository
+import io.github.aaronjones56.bouclier.youtube.YoutubeRulesState
+import kotlinx.coroutines.launch
 
 private val BlockResponse.title: String
     get() = when (this) {
@@ -73,6 +79,8 @@ private val BlockResponse.detail: String
 fun SettingsScreen(onMessage: (String) -> Unit) {
     val context = LocalContext.current
     val settings by SettingsRepository.state.collectAsStateWithLifecycle()
+    val youtubeRules by YoutubeRulesRepository.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     var showDnsDialog by rememberSaveable { mutableStateOf(false) }
     var showBlockDialog by rememberSaveable { mutableStateOf(false) }
     var showThemeDialog by rememberSaveable { mutableStateOf(false) }
@@ -165,6 +173,21 @@ fun SettingsScreen(onMessage: (String) -> Unit) {
                 icon = Icons.Outlined.SmartDisplay,
             )
         }
+        item {
+            ClickRow(
+                title = "Règles anti-pub YouTube",
+                subtitle = youtubeRules.summary(),
+                onClick = {
+                    if (!youtubeRules.updating) {
+                        scope.launch {
+                            val failed = YoutubeRulesRepository.update(force = true)
+                            onMessage(if (failed == 0) "Règles YouTube à jour" else "Mise à jour des règles YouTube impossible")
+                        }
+                    }
+                },
+                icon = Icons.Outlined.FilterAlt,
+            )
+        }
 
         item { SectionTitle("Apparence") }
         item {
@@ -221,6 +244,16 @@ fun SettingsScreen(onMessage: (String) -> Unit) {
     }
 }
 
+private fun YoutubeRulesState.summary(): String = when {
+    updating -> "Téléchargement des dernières règles…"
+    else -> buildString {
+        append(Format.count(ruleCount)).append(" règles AdGuard et uBlock Origin · ")
+        append(if (updatedAt == 0L) "fournies avec l'application" else "mises à jour ${Format.relativeTime(updatedAt)}")
+        if (error != null) append("\nÉchec : ").append(error)
+        append("\nTouchez pour les mettre à jour.")
+    }
+}
+
 @Composable
 private fun About() {
     Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
@@ -235,8 +268,9 @@ private fun About() {
         Spacer(Modifier.height(10.dp))
         Text(
             "Listes de filtres : AdGuard DNS filter (GPL-3.0), HaGeZi DNS Blocklists (GPL-3.0), " +
-                "StevenBlack hosts (MIT) et malware-filter. Merci à leurs auteurs. Bouclier est un projet " +
-                "indépendant, sans lien avec ces projets ni avec AdGuard.",
+                "StevenBlack hosts (MIT) et malware-filter. Lecteur YouTube : règles d'AdGuard Base et " +
+                "d'uBlock Origin (GPL-3.0), exécutées par AdGuard Scriptlets (GPL-3.0). Merci à leurs " +
+                "auteurs. Bouclier est un projet indépendant, sans lien avec ces projets ni avec AdGuard.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

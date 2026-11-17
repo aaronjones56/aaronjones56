@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-val appVersionName = "1.1.0"
+val appVersionName = "1.2.0"
 
 android {
     namespace = "io.github.aaronjones56.bouclier"
@@ -16,7 +16,7 @@ android {
         applicationId = "io.github.aaronjones56.bouclier"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
+        versionCode = 3
         versionName = appVersionName
     }
 

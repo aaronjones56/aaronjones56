@@ -35,19 +35,27 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.webkit.ScriptHandler
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import io.github.aaronjones56.bouclier.R
 import io.github.aaronjones56.bouclier.filter.FilterRepository
 import io.github.aaronjones56.bouclier.youtube.YoutubeLinks
+import io.github.aaronjones56.bouclier.youtube.YoutubePlayerRules
 import io.github.aaronjones56.bouclier.youtube.YoutubeRequestFilter
+import io.github.aaronjones56.bouclier.youtube.YoutubeRulesRepository
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
 
 /**
- * Lecteur YouTube sans publicité : le site mobile de YouTube, chargé dans une WebView où
- * un script retire les annonces avant qu'elles ne démarrent et où les requêtes
- * publicitaires sont bloquées. S'ouvre depuis l'accueil, depuis le bouton « Partager »
- * de l'application YouTube ou depuis un lien youtube.com.
+ * Lecteur YouTube sans publicité : le site mobile de YouTube, chargé dans une WebView.
+ * Comme dans un navigateur équipé d'AdGuard ou d'uBlock Origin, des scripts injectés avant
+ * ceux de YouTube retirent les annonces des réponses du serveur avant que le lecteur ne les
+ * voie (la vidéo démarre directement), et les requêtes publicitaires sont bloquées.
+ * S'ouvre depuis l'accueil, depuis le bouton « Partager » de l'application YouTube ou depuis
+ * un lien youtube.com.
  */
 class YoutubeActivity : ComponentActivity() {
 
@@ -57,11 +65,12 @@ class YoutubeActivity : ComponentActivity() {
     private lateinit var fullscreenContainer: FrameLayout
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
-    private var scriptInjectedAtDocumentStart = false
+    private var documentStartSupported = false
+    private val scriptHandlers = mutableListOf<ScriptHandler>()
 
-    private val adblockScript: String by lazy {
-        assets.open("youtube/adblock.js").bufferedReader().use { it.readText() }
-    }
+    /** Règles appliquées ; lues aussi par le fil qui filtre les requêtes. */
+    @Volatile
+    private var installedRules: YoutubePlayerRules? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,15 +89,23 @@ class YoutubeActivity : ComponentActivity() {
                 }
             }
         })
-        if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
-            open(intent)
+        YoutubeRulesRepository.updateIfDue()
+        // La page ne se charge qu'une fois les règles en place : aucune pub ne passe avant.
+        lifecycleScope.launch {
+            YoutubeRulesRepository.playerRules.filterNotNull().collect { rules ->
+                val first = installedRules == null
+                install(rules)
+                if (first && (savedInstanceState == null || webView.restoreState(savedInstanceState) == null)) {
+                    open(intent)
+                }
+            }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        open(intent)
+        if (installedRules != null) open(intent)
     }
 
     override fun onResume() {
@@ -164,38 +181,52 @@ class YoutubeActivity : ComponentActivity() {
             // YouTube sert sa version mobile complète aux navigateurs, pas aux WebView.
             userAgentString = browserUserAgent(userAgentString)
         }
-        scriptInjectedAtDocumentStart = try {
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                WebViewCompat.addDocumentStartJavaScript(webView, adblockScript, setOf("https://*.youtube.com", "https://youtube.com"))
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Injection au démarrage des pages impossible", e)
-            false
-        }
+        documentStartSupported = WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
         webView.webViewClient = PlayerWebViewClient()
         webView.webChromeClient = PlayerChromeClient()
         try {
             ServiceWorkerController.getInstance().setServiceWorkerClient(object : ServiceWorkerClient() {
                 override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? =
-                    blockedResponse(request.url.toString())
+                    blockedResponse(request)
             })
         } catch (e: Exception) {
             Log.w(TAG, "Filtrage des service workers indisponible", e)
         }
     }
 
+    /**
+     * Installe les scripts de [rules] : au démarrage de chaque page, avant ceux de YouTube,
+     * et dans tous ses cadres. Une mise à jour des règles s'applique à la page suivante.
+     */
+    private fun install(rules: YoutubePlayerRules) {
+        installedRules = rules
+        if (!documentStartSupported) return
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) return
+        scriptHandlers.forEach { it.remove() }
+        scriptHandlers.clear()
+        try {
+            for (script in rules.scripts) {
+                scriptHandlers += WebViewCompat.addDocumentStartJavaScript(webView, script, YOUTUBE_ORIGINS)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Injection au démarrage des pages impossible", e)
+            scriptHandlers.forEach { it.remove() }
+            scriptHandlers.clear()
+            documentStartSupported = false
+        }
+    }
+
     /** Réponse vide pour une requête publicitaire, `null` pour laisser passer la requête. */
-    private fun blockedResponse(url: String): WebResourceResponse? {
-        if (!YoutubeRequestFilter.shouldBlock(url, FilterRepository.matcher.value)) return null
+    private fun blockedResponse(request: WebResourceRequest): WebResourceResponse? {
+        // Les règles réseau des listes ne visent que les requêtes de la page, jamais la page elle-même.
+        val rules = if (request.isForMainFrame) emptyList() else installedRules?.blockedUrls.orEmpty()
+        if (!YoutubeRequestFilter.shouldBlock(request.url.toString(), FilterRepository.matcher.value, rules)) return null
         return WebResourceResponse("text/plain", "utf-8", 204, "No Content", emptyMap(), ByteArrayInputStream(ByteArray(0)))
     }
 
     private inner class PlayerWebViewClient : WebViewClient() {
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-            blockedResponse(request.url.toString())
+            blockedResponse(request)
 
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             if (!request.isForMainFrame) return false
@@ -223,7 +254,7 @@ class YoutubeActivity : ComponentActivity() {
 
         override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
             // WebView trop ancienne pour l'injection au démarrage : on injecte au plus tôt.
-            if (!scriptInjectedAtDocumentStart) view.evaluateJavascript(adblockScript, null)
+            if (!documentStartSupported) installedRules?.scripts?.forEach { view.evaluateJavascript(it, null) }
         }
     }
 
@@ -287,6 +318,7 @@ class YoutubeActivity : ComponentActivity() {
         private const val TAG = "YoutubeActivity"
         private const val MOBILE_HOST = "m.youtube.com"
         private const val YOUTUBE_ORIGIN = "https://www.youtube.com"
+        private val YOUTUBE_ORIGINS = setOf("https://*.youtube.com", "https://youtube.com")
         private const val BACKGROUND = 0xFF0F0F0F.toInt()
 
         fun open(context: Context) {
